@@ -272,6 +272,8 @@ function clear_canvas()
 {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     arrays_of_points=[];
+    lastPoint = 0;
+    lastLine = 0;
 }
 
 function switch_class(e,c)
@@ -323,6 +325,8 @@ function resize() {
 window.addEventListener('resize', resize);
 window.addEventListener('load', resize);
 
+window.requestAnimationFrame(draw_last_line_segment);
+
 var isMouseDown = false;
 var mouseX = 0;
 var mouseY = 0;
@@ -342,7 +346,6 @@ canvas.addEventListener("mousedown",function (e) {
         event.preventDefault();
         arrays_of_points.push(new Array());
         arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-        //update_pen_settings()
         ts_undo_button.className = "active"
     }
 });
@@ -360,19 +363,22 @@ window.addEventListener("mouseup",function (e) {
     /* Needed for the last bit of the drawing */
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-        draw_last_line_segment();
     }
     isMouseDown = false;
 });
 
 function ts_redraw() {
+    lastLine = 0; 
+    lastPoint = 0;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     for (var path = 0; path < arrays_of_points.length; path++) {
+        lastLine = path;
         var p1 = arrays_of_points[path][0];
         var p2 = arrays_of_points[path][1];
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         for (var i = 1, len = arrays_of_points[path].length; i < len; i++) {
+            lastPoint = i;
             var midPoint = midPointBtw(p1, p2);
             ctx.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
             p1 = arrays_of_points[path][i];
@@ -380,37 +386,44 @@ function ts_redraw() {
         }
         ctx.stroke();
     }
+    ctx.fillText(lastLine, 50, 50);
+    ctx.fillText(lastPoint, 50, 300);
+   
 }
 
-function draw_last_line_segment() {
-    var last = arrays_of_points[arrays_of_points.length - 1];
+var lastLine = 0;
+var lastPoint = 0;
 
-    if (last.length > 2){
-        var p1 = last[last.length - 3];
-        var p2 = last[last.length - 2];
-        var p3 = last[last.length - 1];
-        var midPoint1 = midPointBtw(p1, p2);
-        var midPoint2 = midPointBtw(p2, p3);
-        ctx.beginPath();
-        ctx.moveTo(midPoint1.x, midPoint1.y);
-        ctx.quadraticCurveTo(p2.x, p2.y, midPoint2.x, midPoint2.y);
-        ctx.stroke();
-    }
-    else if (last.length > 1) {
-        var p1 = last[last.length - 2];
-        var p2 = last[last.length - 1];
-        var midPoint = midPointBtw(p1, p2);
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
-        ctx.stroke();
+function draw_last_line_segment() {
+    window.requestAnimationFrame(draw_last_line_segment);
+    
+    for(var i = lastLine; i < arrays_of_points.length; i++){ 
+        var last = arrays_of_points[i];
+        
+        for(var j = lastPoint; j < last.length; j++){
+            ctx.beginPath();
+            lastPoint = j;
+            var p1 = last[(j > 1 ? j-2 : (j > 0 ? j - 1 : j ) )];
+            var p2 = last[(j > 1 ? j-1 : (j > 0 ? j - 1 : j ) )];
+            var p3 = last[(j > 1 ? j   : (j > 0 ? j     : j ) )];
+            var midPoint1 = midPointBtw(p1, p2);
+            var midPoint2 = midPointBtw(p2, p3);
+            ctx.moveTo(midPoint1.x, midPoint1.y);
+            ctx.quadraticCurveTo(p2.x, p2.y, midPoint2.x, midPoint2.y);
+          
+            ctx.stroke();  
+        }
+        
+        if(i != lastLine){
+            lastPoint = 0;
+            lastLine = i;
+        }
     }
 }
  
 canvas.addEventListener("mousemove",function (e) {
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-        draw_last_line_segment();
     }
 });
 
