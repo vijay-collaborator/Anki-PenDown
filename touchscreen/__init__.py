@@ -141,42 +141,26 @@ def assure_plugged_in():
         ts_default_review_html = mw.reviewer.revHtml
         mw.reviewer.revHtml = custom
 
-
-def clear_blackboard(web_object=None):
+def resize_js():
+    execute_js("setTimeout(resize, 101);");
+    
+def clear_blackboard():
     assure_plugged_in()
 
-    if not web_object: 
-        web_object = mw.reviewer.web
-
     if ts_state_on:
-        javascript = 'clear_canvas();'
-        web_object.eval(javascript)
-
-
-def ts_resize(html, card, context):
-    if ts_state_on:
-        html += """
-        <script>
-        var ts_interval;
-        if(ts_interval === undefined){
-            if(resize !== undefined)
-                ts_interval = window.setInterval(resize, 750);
-        }
-        </script>
-        """
-    return html
-
+        execute_js("clear_canvas();");
+        # is qFade the reason for having to wait?
+        execute_js("setTimeout(resize, 101);");
 
 def ts_onload():
     """
     Add hooks and initialize menu.
     Call to this function is placed on the end of this file.
     """
-
     addHook("unloadProfile", ts_save)
     addHook("profileLoaded", ts_load)
     addHook("showQuestion", clear_blackboard)
-    addHook('prepareQA', ts_resize)
+    addHook("showAnswer", resize_js)
     ts_setup_menu()
 
 
@@ -199,6 +183,7 @@ ts_blackboard = u"""
 }
 #main_canvas{
     opacity: """ + str(ts_opacity) + """;
+    
 }
 .night_mode #pencil_button_bar input[type=button].active
 {
@@ -301,19 +286,23 @@ function switch_class(e,c)
         e.className += c;
     }
 }
-
 function resize() {
+    
     var card = document.getElementsByClassName('card')[0]
-    ctx.canvas.width = document.documentElement.scrollWidth - 1;
-    ctx.canvas.height = Math.max(
-        document.body.clientHeight,
-        window.innerHeight,
-        document.documentElement ? document.documentElement.scrollHeight : 0,
-        card ? card.scrollHeight : 0
-    ) - 1;
-
-    canvas.style.height = ctx.canvas.height + 'px';
-    wrapper.style.width = ctx.canvas.width + 'px';
+    
+    // Run again until card is loaded
+    if (!card){
+        window.setTimeout(resize, 100)
+        return;
+        
+    }
+    // Check size of page without canvas
+    canvas_wrapper.style.display='none';
+    ctx.canvas.width = Math.max(card.scrollWidth, document.documentElement.clientWidth);
+    ctx.canvas.height = Math.max(document.documentElement.scrollHeight, document.documentElement.clientHeight);
+    
+    canvas_wrapper.style.display='block';
+    
     
     /* Get DPR with 1 as fallback */
     var dpr = window.devicePixelRatio || 1;
@@ -330,9 +319,9 @@ function resize() {
     update_pen_settings()
 }
 
-window.setTimeout(resize, 0)
+
 window.addEventListener('resize', resize);
-document.body.addEventListener('load', resize)
+window.addEventListener('load', resize);
 
 var isMouseDown = false;
 var mouseX = 0;
@@ -346,13 +335,16 @@ function update_pen_settings(){
     ts_redraw()
 }
 
+
 canvas.addEventListener("mousedown",function (e) {
-    isMouseDown = true;
-    event.preventDefault();
-    arrays_of_points.push(new Array());
-    arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-    update_pen_settings()
-    ts_undo_button.className = "active"
+    if(!isMouseDown){
+        isMouseDown = true;
+        event.preventDefault();
+        arrays_of_points.push(new Array());
+        arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
+        //update_pen_settings()
+        ts_undo_button.className = "active"
+    }
 });
 
 function ts_undo(){
@@ -365,12 +357,15 @@ function ts_undo(){
 }
  
 window.addEventListener("mouseup",function (e) {
+    /* Needed for the last bit of the drawing */
+    if (isMouseDown && active) {
+        arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
+        draw_last_line_segment();
+    }
     isMouseDown = false;
 });
 
-
-function ts_redraw()
-{
+function ts_redraw() {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     for (var path = 0; path < arrays_of_points.length; path++) {
         var p1 = arrays_of_points[path][0];
@@ -383,16 +378,39 @@ function ts_redraw()
             p1 = arrays_of_points[path][i];
             p2 = arrays_of_points[path][i+1];
         }
-        ctx.lineTo(p1.x, p1.y);
         ctx.stroke();
     }
+}
 
+function draw_last_line_segment() {
+    var last = arrays_of_points[arrays_of_points.length - 1];
+
+    if (last.length > 2){
+        var p1 = last[last.length - 3];
+        var p2 = last[last.length - 2];
+        var p3 = last[last.length - 1];
+        var midPoint1 = midPointBtw(p1, p2);
+        var midPoint2 = midPointBtw(p2, p3);
+        ctx.beginPath();
+        ctx.moveTo(midPoint1.x, midPoint1.y);
+        ctx.quadraticCurveTo(p2.x, p2.y, midPoint2.x, midPoint2.y);
+        ctx.stroke();
+    }
+    else if (last.length > 1) {
+        var p1 = last[last.length - 2];
+        var p2 = last[last.length - 1];
+        var midPoint = midPointBtw(p1, p2);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
+        ctx.stroke();
+    }
 }
  
 canvas.addEventListener("mousemove",function (e) {
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-        ts_redraw()
+        draw_last_line_segment();
     }
 });
 
