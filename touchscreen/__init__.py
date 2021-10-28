@@ -199,42 +199,37 @@ ts_blackboard = u"""
 }
 #main_canvas{
     opacity: """ + str(ts_opacity) + """;
+	//pointer-events:none
 }
 .night_mode #pencil_button_bar input[type=button].active
 {
-    -webkit-filter: grayscale(0);
-    filter: none;
     color: #fff!important;
 }
 #pencil_button_bar input[type=button].active
 {
-    -webkit-filter: grayscale(0);
-    filter: none;
     color: black!important;
 }
 #pencil_button_bar
 {
     position: fixed;
-    top: 1px;
+    bottom: 1px;
     right: 1px;
     z-index: 1000;
     font-family: "Arial Unicode MS", unifont, "Everson Mono", tahoma, arial;
 }
 #pencil_button_bar input[type=button]
 {
-    filter: gray;
-    -webkit-filter: grayscale(1);
-    filter: grayscale(1);
     border: 1px solid black;
     margin: 0 1px;
     display: inline-block;
     float: left;
-    width: 90px!important;
-    font-size: 130%;
-    line-height: 130%;
-    height: 50px;
+    width: 60px!important;
+    font-size: 60%;
+    line-height: 60%;
+    height: 40px;
     border-radius: 8px;
     background-color: rgba(250,250,250,0.5)!important;
+    color: black;
     color: #ccc!important;
 }
 .night_mode #pencil_button_bar input[type=button]{
@@ -254,7 +249,7 @@ var visible = true;
 var canvas = document.getElementById('main_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
-var ctx = canvas.getContext('2d');
+var ctx = canvas.getContext('2d', { alpha: false });
 var arrays_of_points = [ ];
 var color = '#fff';
 var line_width = 4;
@@ -273,14 +268,6 @@ function switch_visibility()
         canvas.style.display='block';
     }
     visible = !visible;
-}
-
-
-function midPointBtw(p1, p2) {
-  return {
-    x: p1.x + (p2.x - p1.x) / 2,
-    y: p1.y + (p2.y - p1.y) / 2
-  };
 }
 
 function clear_canvas()
@@ -310,10 +297,22 @@ function resize() {
         window.innerHeight,
         document.documentElement ? document.documentElement.scrollHeight : 0,
         card ? card.scrollHeight : 0
-    ) - 1;
+    );
+    //)-1;
 
     canvas.style.height = ctx.canvas.height + 'px';
     wrapper.style.width = ctx.canvas.width + 'px';
+	/* Get DPR with 1 as fallback */
+    var dpr = window.devicePixelRatio || 1;
+    
+    /* CSS size is the same */
+    canvas.style.height = ctx.canvas.height + 'px';
+    wrapper.style.width = ctx.canvas.width + 'px';
+    
+    /* Increase DOM size and scale */
+    ctx.canvas.width *= dpr;
+    ctx.canvas.height *= dpr;
+    ctx.scale(dpr, dpr);
     update_pen_settings()
 }
 
@@ -321,25 +320,112 @@ window.setTimeout(resize, 0)
 window.addEventListener('resize', resize);
 document.body.addEventListener('load', resize)
 
-var isMouseDown = false;
-var mouseX = 0;
-var mouseY = 0;
 var active = true;
+var isPointerDown = false;
+var pathIndex = 0;
+var prevPoint;
+var currentPoint;
+
+function ts_redraw()
+{
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    for (var path = 0; path < arrays_of_points.length; path++) {
+        for (var i = 0; i < arrays_of_points[path].length - 1; i++) {
+			ctx.beginPath();
+			ctx.moveTo(arrays_of_points[path][i][0], arrays_of_points[path][i][1]);
+			ctx.lineTo(arrays_of_points[path][i+1][0], arrays_of_points[path][i+1][1]);
+			ctx.lineWidth = arrays_of_points[path][i+1][2];
+			ctx.stroke();	
+        }
+    }
+}
 
 function update_pen_settings(){
     ctx.lineJoin = ctx.lineCap = 'round';
-    ctx.lineWidth = line_width;
     ctx.strokeStyle = color;
     ts_redraw()
 }
 
-canvas.addEventListener("mousedown",function (e) {
-    isMouseDown = true;
-    event.preventDefault();
-    arrays_of_points.push(new Array());
-    arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-    update_pen_settings()
+canvas.addEventListener("pointerdown", function (e) {
+	//event.preventDefault();
+	//start drawing
+    isPointerDown = true;
+	update_pen_settings()
     ts_undo_button.className = "active"
+    //start a new Point history for a line 
+    arrays_of_points.push([]);
+	pathIndex = arrays_of_points.length-1;
+	//add first Point
+	prevPoint = [ 
+		e.offsetX,
+		e.offsetY,
+		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ];
+    arrays_of_points[pathIndex].push(prevPoint);
+	//make the first point stick in history through refreshes
+	arrays_of_points[pathIndex].push([ 
+		e.offsetX+0.1,
+		e.offsetY+0.1,
+		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ]);
+	//draw the first point
+	drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], prevPoint[0]+0.1, prevPoint[1]+0.1, prevPoint[2])
+});
+
+ // // var getlinewidth = function getlinewidth(e) {
+    // // switch (e.pointertype) {
+      // // case 'touch': {
+        // // if (e.width < 10 && e.height < 10) {
+          // // return (e.width + e.height) * 2 + 10;
+        // // } else {
+          // // return (e.width + e.height - 40) / 2;
+        // // }
+      // // }
+      // // case 'pen': return e.pressure * 8;
+      // // default: return (e.pressure) ? e.pressure * 8 : 4;
+    // // }
+  // // }
+
+//allow switching between disabling drawing and not when active is set with pointer-events:none
+//
+
+async function drawPathAtSomePointAsync(startX, startY, endX, endY, lineWidth) {
+		
+		ctx.beginPath();
+		ctx.moveTo(startX, startY);
+		//ctx.quadraticCurveTo(endX, endY, (startX + (endX - startX) / 2), (startY + (endY - startY)/ 2));
+		ctx.lineTo(endX, endY);
+		ctx.lineWidth = lineWidth;
+		ctx.stroke();
+};
+
+canvas.addEventListener("pointermove", function (e) {
+    if (isPointerDown && active) {
+		//  create new Point
+		currentPoint = [
+			e.offsetX,
+			e.offsetY,
+			e.pointerType[0] == 'm' ? line_width : (prevPoint[2] + e.pressure * line_width * 2) / 2];
+			
+		//  save Point
+		arrays_of_points[pathIndex].push(currentPoint);
+		
+		//  draw
+		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
+		// ctx.beginPath();
+		// ctx.moveTo(prevPoint[0], prevPoint[1]);
+		// ctx.quadraticCurveTo(prevPoint[0], prevPoint[1], 
+		// (prevPoint[0] + (currentPoint[0] - prevPoint[0]) / 2), (prevPoint[1] + (currentPoint[1] - prevPoint[1]) / 2));
+		// //ctx.lineTo(currentPoint[0], currentPoint[0]);
+		// ctx.lineWidth = currentPoint[2];
+		// ctx.stroke();
+
+		//   save new point as previous
+		prevPoint = currentPoint
+    }
+});
+
+window.addEventListener("pointerup",function (e) {
+    isPointerDown = false;
 });
 
 function ts_undo(){
@@ -350,42 +436,11 @@ function ts_undo(){
     }
     ts_redraw()
 }
- 
-window.addEventListener("mouseup",function (e) {
-    isMouseDown = false;
-});
-
-
-function ts_redraw()
-{
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    for (var path = 0; path < arrays_of_points.length; path++) {
-        var p1 = arrays_of_points[path][0];
-        var p2 = arrays_of_points[path][1];
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        for (var i = 1, len = arrays_of_points[path].length; i < len; i++) {
-            var midPoint = midPointBtw(p1, p2);
-            ctx.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
-            p1 = arrays_of_points[path][i];
-            p2 = arrays_of_points[path][i+1];
-        }
-        ctx.lineTo(p1.x, p1.y);
-        ctx.stroke();
-    }
-
-}
- 
-canvas.addEventListener("mousemove",function (e) {
-    if (isMouseDown && active) {
-        arrays_of_points[arrays_of_points.length-1].push({ x: e.offsetX, y: e.offsetY });
-        ts_redraw()
-    }
-});
 
 document.addEventListener('keyup', function(e) {
     // Z or z
     if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey) {
+		e.preventDefault()
         ts_undo()
     }
 })
