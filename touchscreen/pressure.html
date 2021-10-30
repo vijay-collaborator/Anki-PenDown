@@ -1,0 +1,286 @@
+<div id="canvas_wrapper">
+    <canvas id="main_canvas" width="100" height="100"></canvas>
+</div>
+<div id="pencil_button_bar">
+    <input type="button" class="active" onclick="active=!active;switch_visibility();switch_class(this, 'active');" value="Hide" title="Toggle visiblity">
+    <input type="button" onclick="ts_undo();" value="Undo" title="Undo the last stroke" id="ts_undo_button">
+    <input type="button" class="active" onclick="clear_canvas();" value="Clean" title="Clean whiteboard">
+</div>
+<style>
+body {
+  //overflow-y: hidden; /* Hide vertical scrollbar */
+  overflow-x: hidden; /* Hide horizontal scrollbar */
+}
+body::-webkit-scrollbar {
+  display: none;
+}
+
+#canvas_wrapper, #main_canvas
+{
+    position:absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 999;
+}
+#main_canvas{
+    opacity: """ + str(ts_opacity) + """;
+	//pointer-events:none
+	display:none;
+}
+.night_mode #pencil_button_bar input[type=button].active
+{
+    color: #fff!important;
+}
+#pencil_button_bar input[type=button].active
+{
+    color: black!important;
+}
+#pencil_button_bar
+{
+    position: fixed;
+    bottom: 1px;
+    right: 1px;
+    z-index: 1000;
+    font-family: "Arial Unicode MS", unifont, "Everson Mono", tahoma, arial;
+}
+#pencil_button_bar input[type=button]
+{
+    border: 1px solid black;
+    margin: 0 1px;
+    display: inline-block;
+    float: left;
+    width: 60px!important;
+    font-size: 60%;
+    line-height: 60%;
+    height: 40px;
+    border-radius: 8px;
+    background-color: rgba(250,250,250,0.5)!important;
+    color: black;
+    color: #ccc!important;
+}
+.night_mode #pencil_button_bar input[type=button]{
+    background-color: rgba(10,10,10,0.5)!important;
+    border-color: #ccc;
+    color: #444!important;
+    text-shadow: 0 0 1px rgba(5, 5, 5, 0.9);
+}
+#canvas_wrapper
+{
+    height: 100px
+}
+</style>
+
+<script>
+var visible = true;
+var canvas = document.getElementById('main_canvas');
+var wrapper = document.getElementById('canvas_wrapper');
+var ts_undo_button = document.getElementById('ts_undo_button');
+var ctx = canvas.getContext('2d', { alpha: false });
+var arrays_of_points = [ ];
+var color = 'grey';
+var line_width = 4;
+
+canvas.onselectstart = function() { return false; };
+wrapper.onselectstart = function() { return false; };
+
+function switch_visibility()
+{
+    if (visible)
+    {
+        canvas.style.display='none';
+    }
+    else
+    {
+        canvas.style.display='block';
+    }
+    visible = !visible;
+}
+
+function clear_canvas()
+{
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    arrays_of_points=[];
+}
+
+function switch_class(e,c)
+{
+    var reg = new RegExp('(\\\s|^)' + c + '(\\s|$)');
+    if (e.className.match(new RegExp('(\\s|^)' + c + '(\\s|$)')))
+    {
+        e.className = e.className.replace(reg, '');
+    }
+    else
+    {
+        e.className += c;
+    }
+}
+
+function resize() {
+    var card = document.getElementsByClassName('card')[0]
+    ctx.canvas.width = window.innerWidth-1;
+    ctx.canvas.height = Math.max(
+        document.body.clientHeight,
+        window.innerHeight,
+        card ? card.scrollHeight : 0
+    )-1;
+
+    canvas.style.height = ctx.canvas.height + 'px';
+    wrapper.style.width = ctx.canvas.width + 'px';
+	/* Get DPR with 1 as fallback */
+    var dpr = window.devicePixelRatio || 1;
+    
+    /* CSS size is the same */
+    canvas.style.height = ctx.canvas.height + 'px';
+    wrapper.style.width = ctx.canvas.width + 'px';
+    
+    /* Increase DOM size and scale */
+    ctx.canvas.width *= dpr;
+    ctx.canvas.height *= dpr;
+    ctx.scale(dpr, dpr);
+    update_pen_settings()
+}
+
+window.setTimeout(resize, 0)
+window.addEventListener('resize', resize);
+document.body.addEventListener('load', resize)
+
+var active = true;
+var isPointerDown = false;
+var pathIndex = 0;
+var prevPoint;
+var midPoint;
+var currentPoint;
+
+function ts_redraw()
+{
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+	var p1,p2,p3;
+    for (var path = 0; path < arrays_of_points.length; path++) {
+        for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
+			if(j < 3){
+				p1 = arrays_of_points[path][j > 1 ? j-2 : 0];
+				p2 = arrays_of_points[path][j > 0 ? j-1 : 0];
+				p3 = arrays_of_points[path][j];
+			}
+			else{
+				p1 = p2;
+				p2 = p3;
+				p3 = arrays_of_points[path][j];
+			}
+			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
+        }
+    }
+}
+
+function update_pen_settings(){
+    ctx.lineJoin = ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    ts_redraw()
+}
+
+canvas.addEventListener("pointerdown", function (e) {
+	//event.preventDefault();
+	//start drawing
+    isPointerDown = true;
+	update_pen_settings()
+    ts_undo_button.className = "active"
+    //start a new Point history for a line 
+    arrays_of_points.push([]);
+	pathIndex = arrays_of_points.length-1;
+	//add first Point
+	prevPoint = [ 
+		e.offsetX,
+		e.offsetY,
+		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ];
+	midPoint = prevPoint;
+    arrays_of_points[pathIndex].push(prevPoint);
+	arrays_of_points[pathIndex].push(prevPoint);
+	//make the first point stick in history through refreshes
+	arrays_of_points[pathIndex].push([ 
+		e.offsetX+0.1,
+		e.offsetY+0.1,
+		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ]);
+	//draw the first point
+	drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], midPoint[0]+0.1, midPoint[1]+0.1, midPoint[2])
+});
+
+ // // var getlinewidth = function getlinewidth(e) {
+    // // switch (e.pointertype) {
+      // // case 'touch': {
+        // // if (e.width < 10 && e.height < 10) {
+          // // return (e.width + e.height) * 2 + 10;
+        // // } else {
+          // // return (e.width + e.height - 40) / 2;
+        // // }
+      // // }
+      // // case 'pen': return e.pressure * 8;
+      // // default: return (e.pressure) ? e.pressure * 8 : 4;
+    // // }
+  // // }
+
+//allow switching between disabling drawing and not when active is set with pointer-events:none
+//
+
+async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, lineWidth) {
+		ctx.beginPath();
+		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));
+		ctx.quadraticCurveTo(midX, midY, (midX + (endX - midX) / 2), (midY + (endY - midY)/ 2));
+		//ctx.lineTo(endX, endY);
+		ctx.lineWidth = lineWidth;
+		ctx.stroke();
+};
+
+// async function drawPathAtSomePointAsync(startX, startY, endX, endY, lineWidth) {
+		
+		// ctx.beginPath();
+		// ctx.moveTo(startX, startY);
+		//ctx.quadraticCurveTo(startX, startY, (startX + (endX - startX) / 2), (startY + (endY - startY)/ 2));
+		// ctx.lineTo(endX, endY);
+		// ctx.lineWidth = lineWidth;
+		// ctx.stroke();
+// };
+
+canvas.addEventListener("pointermove", function (e) {
+    if (isPointerDown && active) {
+		//  create new Point
+		currentPoint = [
+			e.offsetX,
+			e.offsetY,
+			e.pointerType[0] == 'm' ? line_width : (prevPoint[2] + e.pressure * line_width * 2) / 2];
+			
+		//  save Point
+		arrays_of_points[pathIndex].push(currentPoint);
+
+		//  draw
+		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], currentPoint[0], currentPoint[1], currentPoint[2]);
+		//drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
+		
+		//   save new point as previous
+		
+		prevPoint = midPoint;
+		midPoint = currentPoint;
+    }
+});
+
+window.addEventListener("pointerup",function (e) {
+    isPointerDown = false;
+});
+
+function ts_undo(){
+    arrays_of_points.pop()
+    if(!arrays_of_points.length)
+    {
+        ts_undo_button.className = ""
+    }
+    ts_redraw()
+}
+
+document.addEventListener('keyup', function(e) {
+    // Z or z
+    if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey) {
+		e.preventDefault()
+        ts_undo()
+    }
+})
+
+</script>
