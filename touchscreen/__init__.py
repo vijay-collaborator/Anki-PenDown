@@ -330,19 +330,26 @@ var active = true;
 var isPointerDown = false;
 var pathIndex = 0;
 var prevPoint;
+var midPoint;
 var currentPoint;
 
 function ts_redraw()
 {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
+	var p1,p2,p3;
     for (var path = 0; path < arrays_of_points.length; path++) {
-        for (var i = 0; i < arrays_of_points[path].length - 1; i++) {
-			ctx.beginPath();
-			ctx.moveTo(arrays_of_points[path][i][0], arrays_of_points[path][i][1]);
-			ctx.lineTo(arrays_of_points[path][i+1][0], arrays_of_points[path][i+1][1]);
-			ctx.lineWidth = arrays_of_points[path][i+1][2];
-			ctx.stroke();	
+        for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
+			if(j < 3){
+				p1 = arrays_of_points[path][j > 1 ? j-2 : 0];
+				p2 = arrays_of_points[path][j > 0 ? j-1 : 0];
+				p3 = arrays_of_points[path][j];
+			}
+			else{
+				p1 = p2;
+				p2 = p3;
+				p3 = arrays_of_points[path][j];
+			}
+			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
     }
 }
@@ -367,14 +374,16 @@ canvas.addEventListener("pointerdown", function (e) {
 		e.offsetX,
 		e.offsetY,
 		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ];
+	midPoint = prevPoint;
     arrays_of_points[pathIndex].push(prevPoint);
+	arrays_of_points[pathIndex].push(prevPoint);
 	//make the first point stick in history through refreshes
 	arrays_of_points[pathIndex].push([ 
 		e.offsetX+0.1,
 		e.offsetY+0.1,
 		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ]);
 	//draw the first point
-	drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], prevPoint[0]+0.1, prevPoint[1]+0.1, prevPoint[2])
+	drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], midPoint[0]+0.1, midPoint[1]+0.1, midPoint[2])
 });
 
  // // var getlinewidth = function getlinewidth(e) {
@@ -394,15 +403,24 @@ canvas.addEventListener("pointerdown", function (e) {
 //allow switching between disabling drawing and not when active is set with pointer-events:none
 //
 
-async function drawPathAtSomePointAsync(startX, startY, endX, endY, lineWidth) {
-		
+async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, lineWidth) {
 		ctx.beginPath();
-		ctx.moveTo(startX, startY);
-		//ctx.quadraticCurveTo(endX, endY, (startX + (endX - startX) / 2), (startY + (endY - startY)/ 2));
-		ctx.lineTo(endX, endY);
+		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));
+		ctx.quadraticCurveTo(midX, midY, (midX + (endX - midX) / 2), (midY + (endY - midY)/ 2));
+		//ctx.lineTo(endX, endY);
 		ctx.lineWidth = lineWidth;
 		ctx.stroke();
 };
+
+// async function drawPathAtSomePointAsync(startX, startY, endX, endY, lineWidth) {
+		
+		// ctx.beginPath();
+		// ctx.moveTo(startX, startY);
+		//ctx.quadraticCurveTo(startX, startY, (startX + (endX - startX) / 2), (startY + (endY - startY)/ 2));
+		// ctx.lineTo(endX, endY);
+		// ctx.lineWidth = lineWidth;
+		// ctx.stroke();
+// };
 
 canvas.addEventListener("pointermove", function (e) {
     if (isPointerDown && active) {
@@ -416,17 +434,13 @@ canvas.addEventListener("pointermove", function (e) {
 		arrays_of_points[pathIndex].push(currentPoint);
 
 		//  draw
-		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
-		// ctx.beginPath();
-		// ctx.moveTo(prevPoint[0], prevPoint[1]);
-		// ctx.quadraticCurveTo(prevPoint[0], prevPoint[1], 
-		// (prevPoint[0] + (currentPoint[0] - prevPoint[0]) / 2), (prevPoint[1] + (currentPoint[1] - prevPoint[1]) / 2));
-		// //ctx.lineTo(currentPoint[0], currentPoint[0]);
-		// ctx.lineWidth = currentPoint[2];
-		// ctx.stroke();
-
+		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], currentPoint[0], currentPoint[1], currentPoint[2]);
+		//drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
+		
 		//   save new point as previous
-		prevPoint = currentPoint
+		
+		prevPoint = midPoint;
+		midPoint = currentPoint;
     }
 });
 
