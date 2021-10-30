@@ -190,6 +190,14 @@ ts_blackboard = u"""
     <input type="button" class="active" onclick="clear_canvas();" value="\u2715" title="Clean whiteboard">
 </div>
 <style>
+body {
+  //overflow-y: hidden; /* Hide vertical scrollbar */
+  overflow-x: hidden; /* Hide horizontal scrollbar */
+}
+body::-webkit-scrollbar {
+  display: none;
+}
+
 #canvas_wrapper, #main_canvas
 {
     position:absolute;
@@ -291,14 +299,12 @@ function switch_class(e,c)
 
 function resize() {
     var card = document.getElementsByClassName('card')[0]
-    ctx.canvas.width = document.documentElement.scrollWidth - 1;
+    ctx.canvas.width = window.innerWidth-1;
     ctx.canvas.height = Math.max(
         document.body.clientHeight,
         window.innerHeight,
-        document.documentElement ? document.documentElement.scrollHeight : 0,
         card ? card.scrollHeight : 0
-    );
-    //)-1;
+    )-1;
 
     canvas.style.height = ctx.canvas.height + 'px';
     wrapper.style.width = ctx.canvas.width + 'px';
@@ -408,7 +414,7 @@ canvas.addEventListener("pointermove", function (e) {
 			
 		//  save Point
 		arrays_of_points[pathIndex].push(currentPoint);
-		
+
 		//  draw
 		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
 		// ctx.beginPath();
