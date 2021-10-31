@@ -348,18 +348,12 @@ function ts_redraw() {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     for (var path = 0; path < arrays_of_points.length; path++) {
         lastLine = path;
+		p2 = p3 = arrays_of_points[path][0];//p1 filled in at the start of the loop
         for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
             lastPoint = j;
-			if(j < 3){
-				p1 = arrays_of_points[path][j > 1 ? j-2 : 0];
-				p2 = arrays_of_points[path][j > 0 ? j-1 : 0];
-				p3 = arrays_of_points[path][j];
-			}
-			else{
-				p1 = p2;
-				p2 = p3;
-				p3 = arrays_of_points[path][j];
-			}
+			p1 = p2;
+			p2 = p3;
+			p3 = arrays_of_points[path][j];
 			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
     }
@@ -384,19 +378,15 @@ function draw_last_line_segment() {
     
     for(var i = lastLine; i < arrays_of_points.length; i++){ 
         var last = arrays_of_points[i];
-
+		///0,0,0:0,0,1:0,1,2,x+1,x+2,x+3
+		//p1 filled in at the start of loop
+		p2 = last[lastPoint > 1 ? lastPoint-2 : 0];
+		p3 = last[lastPoint > 0 ? lastPoint-1 : 0];
         for(var j = lastPoint, initialisedPoints = 0; j < last.length; j++,initialisedPoints++){
 			lastPoint = j;
-			if(initialisedPoints < 3){
-				p1 = last[j > 1 ? j-2 : 0];
-				p2 = last[j > 0 ? j-1 : 0];
-				p3 = last[j];
-			}
-			else{
-				p1 = p2;
-				p2 = p3;
-				p3 = last[j];
-			}
+			p1 = p2;
+			p2 = p3;
+			p3 = last[j];
 			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
         
@@ -415,8 +405,7 @@ canvas.addEventListener("pointerdown",function (e) {
 		arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			//e.pointerType[0] == 'm' ? line_width : e.pressure
-			line_width]);
+			e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2]);
         ts_undo_button.className = "active"
     }
 });
@@ -426,13 +415,12 @@ canvas.addEventListener("pointermove",function (e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			//e.pointerType[0] == 'm' ? line_width : e.pressure
-			line_width]);
+			e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2]]);
     }
 });
 
 window.addEventListener("pointerup",function (e) {
-    /* Needed for the last bit of the drawing */
+    /* Needed for the last bit of the drawing, or not, no real recipe. */
     /* if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
