@@ -204,7 +204,6 @@ body::-webkit-scrollbar {
     top: 0px;
     left: 0px;
     z-index: 999;
-	display: none;
 }
 #main_canvas{
     opacity: """ + str(ts_opacity) + """;
