@@ -333,15 +333,13 @@ var pathIndex = 0;
 var prevPoint;
 var midPoint;
 var currentPoint;
+var p1,p2,p3;
 
 function ts_redraw()
 {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-	var p1,p2,p3;
     for (var path = 0; path < arrays_of_points.length; path++) {
-		p1 = arrays_of_points[path][0];
-		p2 = p1;
-		p3 = p1;
+		p2 = p3 = arrays_of_points[path][0]; //p1 is set at the start of the loop
         for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
 			p1 = p2;
 			p2 = p3;
@@ -398,6 +396,7 @@ canvas.addEventListener("pointerdown", function (e) {
   // // }
 
 //allow switching between disabling drawing and not when active is set with pointer-events:none
+//add more hotkeys
 //
 
 async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, lineWidth) {
