@@ -318,7 +318,6 @@ function resize() {
 
 window.addEventListener('resize', resize);
 window.addEventListener('load', resize);
-
 window.requestAnimationFrame(draw_last_line_segment);
 
 var isMouseDown = false;
@@ -343,28 +342,20 @@ function ts_undo(){
 }
 
 function ts_redraw() {
-    lastLine = 0; 
-    lastPoint = 0;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    for (var path = 0; path < arrays_of_points.length; path++) {
-        lastLine = path;
-		p2 = p3 = arrays_of_points[path][0];//p1 filled in at the start of the loop
-        for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
-            lastPoint = j;
-			p1 = p2;
-			p2 = p3;
-			p3 = arrays_of_points[path][j];
-			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
-        }
-    }
+    draw_upto_latest_point_async(0, 0)
+}
+
+function draw_last_line_segment() {
+    window.requestAnimationFrame(draw_last_line_segment);
+    draw_upto_latest_point_async(lastLine, lastPoint)
 }
 
 var lastLine = 0;
 var lastPoint = 0;
 var p1,p2,p3;
 
-
-async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, lineWidth) {
+async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, endY, lineWidth) {
 		ctx.beginPath();
 		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));
 		ctx.quadraticCurveTo(midX, midY, (midX + (endX - midX) / 2), (midY + (endY - midY)/ 2));
@@ -373,21 +364,20 @@ async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, 
 		ctx.stroke();
 };
 
-function draw_last_line_segment() {
-    window.requestAnimationFrame(draw_last_line_segment);
-    
-    for(var i = lastLine; i < arrays_of_points.length; i++){ 
-        var last = arrays_of_points[i];
-		///0,0,0:0,0,1:0,1,2,x+1,x+2,x+3
+function draw_upto_latest_point_async(startLine, startPoint){
+	lastLine = startLine; 
+    lastPoint = startPoint;
+	for(var i = lastLine; i < arrays_of_points.length; i++){ 
+		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
 		//p1 filled in at the start of loop
-		p2 = last[lastPoint > 1 ? lastPoint-2 : 0];
-		p3 = last[lastPoint > 0 ? lastPoint-1 : 0];
-        for(var j = lastPoint, initialisedPoints = 0; j < last.length; j++,initialisedPoints++){
+		p2 = arrays_of_points[i][lastPoint > 1 ? lastPoint-2 : 0];
+		p3 = arrays_of_points[i][lastPoint > 0 ? lastPoint-1 : 0];
+        for(var j = lastPoint, initialisedPoints = 0; j < arrays_of_points[i].length; j++,initialisedPoints++){
 			lastPoint = j;
 			p1 = p2;
 			p2 = p3;
-			p3 = last[j];
-			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
+			p3 = arrays_of_points[i][j];
+			draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
         
         if(i != lastLine){
@@ -397,25 +387,24 @@ function draw_last_line_segment() {
     }
 }
 
-canvas.addEventListener("pointerdown",function (e) {
+canvas.addEventListener("pointerdown", function (e) {
     if(!isMouseDown){
         isMouseDown = true;
         event.preventDefault();
-        arrays_of_points.push([]);
-		arrays_of_points[arrays_of_points.length-1].push([
+        arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2]);
+			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]]);
         ts_undo_button.className = "active"
     }
 });
 
-canvas.addEventListener("pointermove",function (e) {
+canvas.addEventListener("pointermove", function (e) {
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2]]);
+			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]);
     }
 });
 
@@ -425,8 +414,7 @@ window.addEventListener("pointerup",function (e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			//e.pointerType[0] == 'm' ? line_width : e.pressure
-			line_width]);
+			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]);
     } */
     isMouseDown = false;
 });
