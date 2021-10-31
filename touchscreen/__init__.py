@@ -204,6 +204,7 @@ body::-webkit-scrollbar {
     top: 0px;
     left: 0px;
     z-index: 999;
+	display: none;
 }
 #main_canvas{
     opacity: """ + str(ts_opacity) + """;
@@ -338,17 +339,13 @@ function ts_redraw()
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	var p1,p2,p3;
     for (var path = 0; path < arrays_of_points.length; path++) {
+		p1 = arrays_of_points[path][0];
+		p2 = p1;
+		p3 = p1;
         for (var j = 0, len = arrays_of_points[path].length; j < len; j++) {
-			if(j < 3){
-				p1 = arrays_of_points[path][j > 1 ? j-2 : 0];
-				p2 = arrays_of_points[path][j > 0 ? j-1 : 0];
-				p3 = arrays_of_points[path][j];
-			}
-			else{
-				p1 = p2;
-				p2 = p3;
-				p3 = arrays_of_points[path][j];
-			}
+			p1 = p2;
+			p2 = p3;
+			p3 = arrays_of_points[path][j];
 			drawPathAtSomePointAsync(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
     }
@@ -412,16 +409,6 @@ async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, 
 		ctx.stroke();
 };
 
-// async function drawPathAtSomePointAsync(startX, startY, endX, endY, lineWidth) {
-		
-		// ctx.beginPath();
-		// ctx.moveTo(startX, startY);
-		//ctx.quadraticCurveTo(startX, startY, (startX + (endX - startX) / 2), (startY + (endY - startY)/ 2));
-		// ctx.lineTo(endX, endY);
-		// ctx.lineWidth = lineWidth;
-		// ctx.stroke();
-// };
-
 canvas.addEventListener("pointermove", function (e) {
     if (isPointerDown && active) {
 		//  create new Point
@@ -435,10 +422,8 @@ canvas.addEventListener("pointermove", function (e) {
 
 		//  draw
 		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], currentPoint[0], currentPoint[1], currentPoint[2]);
-		//drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
-		
+
 		//   save new point as previous
-		
 		prevPoint = midPoint;
 		midPoint = currentPoint;
     }
