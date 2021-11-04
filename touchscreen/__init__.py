@@ -388,34 +388,37 @@ function draw_upto_latest_point_async(startLine, startPoint){
 }
 
 canvas.addEventListener("pointerdown", function (e) {
+	if (!e.isPrimary) { return; }
     if(!isMouseDown){
         isMouseDown = true;
         event.preventDefault();
         arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]]);
+			e.pointerType[0] == 'p' ? (0.1 + e.pressure * line_width * 2) : line_width]]);
         ts_undo_button.className = "active"
     }
 });
 
 canvas.addEventListener("pointermove", function (e) {
+	if (!e.isPrimary) { return; }
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]);
+			e.pointerType[0] == 'p' ? (0.1 + e.pressure * line_width * 2) : line_width]);
     }
 });
 
 window.addEventListener("pointerup",function (e) {
-    /* Needed for the last bit of the drawing, or not, no real recipe. */
-    /* if (isMouseDown && active) {
+    /* Needed for the last bit of the drawing. */
+	if (!e.isPrimary) { return; }
+    if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : (e.pressure * line_width * 2)]);
-    } */
+			e.pointerType[0] == 'p' ? (e.pressure * line_width * 2) : line_width]);
+    }
     isMouseDown = false;
 });
 
