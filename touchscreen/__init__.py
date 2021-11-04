@@ -368,17 +368,15 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 		ctx.lineWidth = lineWidth;
 		ctx.stroke();
 };
-
+//Weird bug: draw 4 lines undo, second disappears by the same length as the first, also the first line turns super smooth, which I would like to always see!
 function draw_upto_latest_point_async(startLine, startPoint){
-	lastLine = startLine; 
-    lastPoint = startPoint;
-	for(var i = lastLine; i < arrays_of_points.length; i++){ 
+	for(var i = startLine; i < arrays_of_points.length; i++){ 
 		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
 		//p1 filled in at the start of loop
-		p2 = arrays_of_points[i][lastPoint > 1 ? lastPoint-2 : 0];
-		p3 = arrays_of_points[i][lastPoint > 0 ? lastPoint-1 : 0];
-        for(var j = lastPoint, initialisedPoints = 0; j < arrays_of_points[i].length; j++,initialisedPoints++){
-			lastPoint = j;
+		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
+		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
+        for(var j = startPoint; j < arrays_of_points[i].length; j++){
+			startPoint = j;
 			p1 = p2;
 			p2 = p3;
 			p3 = arrays_of_points[i][j];
@@ -392,38 +390,45 @@ function draw_upto_latest_point_async(startLine, startPoint){
     }
 }
 
+var drawingWithPressurePenOnly = false; // hack for drawing with 2 main pointers when using a presure sensitive pen
+
 canvas.addEventListener("pointerdown", function (e) {
 	if (!e.isPrimary) { return; }
+	if (e.pointerType[0] == 'p') { drawingWithPressurePenOnly = true }
+	else if ( drawingWithPressurePenOnly) { return; }
     if(!isMouseDown){
-        isMouseDown = true;
         event.preventDefault();
         arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'p' ? (0.1 + e.pressure * line_width * 2) : line_width]]);
+			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]]);
         ts_undo_button.className = "active"
+		isMouseDown = true;
     }
 });
 
 canvas.addEventListener("pointermove", function (e) {
 	if (!e.isPrimary) { return; }
+	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
     if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'p' ? (0.1 + e.pressure * line_width * 2) : line_width]);
+			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]);
     }
 });
 
 window.addEventListener("pointerup",function (e) {
     /* Needed for the last bit of the drawing. */
 	if (!e.isPrimary) { return; }
-    if (isMouseDown && active) {
+	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
+   /*  if (isMouseDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (e.pressure * line_width * 2) : line_width]);
-    }
+    } */
+	drawingWithPressurePenOnly = false;
     isMouseDown = false;
 });
 
@@ -432,6 +437,14 @@ document.addEventListener('keyup', function(e) {
     if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey) {
 		e.preventDefault()
         ts_undo()
+    }
+    // .
+    if (e.key === ".") {
+        clear_canvas()
+    }
+	// ,
+    if (e.key === ".") {
+        switch_visibility()
     }
 })
 
