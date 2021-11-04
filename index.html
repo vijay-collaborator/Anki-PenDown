@@ -172,9 +172,9 @@ function update_pen_settings(){
     ctx.strokeStyle = color;
     ts_redraw()
 }
-
 canvas.addEventListener("pointerdown", function (e) {
-	//event.preventDefault();
+	event.preventDefault();
+	if ( !e.pressure || !e.isPrimary) { return; }
 	//start drawing
     isPointerDown = true;
 	update_pen_settings()
@@ -186,7 +186,7 @@ canvas.addEventListener("pointerdown", function (e) {
 	prevPoint = [ 
 		e.offsetX,
 		e.offsetY,
-		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ];
+		e.pressure * line_width];
 	midPoint = prevPoint;
     arrays_of_points[pathIndex].push(prevPoint);
 	arrays_of_points[pathIndex].push(prevPoint);
@@ -194,9 +194,9 @@ canvas.addEventListener("pointerdown", function (e) {
 	arrays_of_points[pathIndex].push([ 
 		e.offsetX+0.1,
 		e.offsetY+0.1,
-		e.pointerType[0] == 'm' ? line_width : e.pressure * line_width * 2 ]);
+		e.pressure * line_width]);
 	//draw the first point
-	drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], midPoint[0]+0.1, midPoint[1]+0.1, midPoint[2])
+	//drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], midPoint[0]+0.1, midPoint[1]+0.1, midPoint[2])
 });
 
  // // var getlinewidth = function getlinewidth(e) {
@@ -236,28 +236,28 @@ async function drawPathAtSomePointAsync(startX, startY, midX, midY, endX, endY, 
 // };
 
 canvas.addEventListener("pointermove", function (e) {
+	if (!e.isPrimary || !e.pressure) { return; }
     if (isPointerDown && active) {
 		//  create new Point
 		currentPoint = [
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'm' ? line_width : (prevPoint[2] + e.pressure * line_width * 2) / 2];
+			e.pressure * line_width];
 			
 		//  save Point
 		arrays_of_points[pathIndex].push(currentPoint);
 
 		//  draw
 		drawPathAtSomePointAsync(prevPoint[0], prevPoint[1],midPoint[0], midPoint[1], currentPoint[0], currentPoint[1], currentPoint[2]);
-		//drawPathAtSomePointAsync(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1], currentPoint[2])
-		
+
 		//   save new point as previous
-		
 		prevPoint = midPoint;
 		midPoint = currentPoint;
     }
 });
 
 window.addEventListener("pointerup",function (e) {
+	if (!e.isPrimary || !e.pressure) { return; }
     isPointerDown = false;
 });
 
