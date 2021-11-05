@@ -267,14 +267,6 @@ function switch_visibility()
     visible = !visible;
 }
 
-function clear_canvas()
-{
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    arrays_of_points=[];
-    lastPoint = 0;
-    lastLine = 0;
-}
-
 function switch_class(e,c)
 {
     var reg = new RegExp('(\\\s|^)' + c + '(\\s|$)');
@@ -317,7 +309,7 @@ function resize() {
     ctx.canvas.height *= dpr;
     ctx.scale(dpr, dpr);
     
-    update_pen_settings()
+	update_pen_settings()
 }
 
 
@@ -325,7 +317,7 @@ window.addEventListener('resize', resize);
 window.addEventListener('load', resize);
 window.requestAnimationFrame(draw_last_line_segment);
 
-var isMouseDown = false;
+var isPointerDown = false;
 var mouseX = 0;
 var mouseY = 0;
 var active = true;
@@ -338,6 +330,7 @@ function update_pen_settings(){
 }
 
 function ts_undo(){
+	stop_drawing();
     arrays_of_points.pop()
     if(!arrays_of_points.length)
     {
@@ -347,8 +340,20 @@ function ts_undo(){
 }
 
 function ts_redraw() {
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    draw_upto_latest_point_async(0, 0)
+	pleaseRedrawEverything = true;
+}
+
+function clear_canvas()
+{
+	//don't continue to put points into an empty array(pointermove) if clearing while drawing on the canvas
+	stop_drawing();
+    arrays_of_points=[];
+	ts_redraw();
+}
+
+function stop_drawing(){
+	isPointerDown = false;
+	drawingWithPressurePenOnly = false;
 }
 
 function draw_last_line_segment() {
@@ -368,26 +373,40 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 		ctx.lineWidth = lineWidth;
 		ctx.stroke();
 };
-//Weird bug: draw 4 lines undo, second disappears by the same length as the first, also the first line turns super smooth, which I would like to always see!
-function draw_upto_latest_point_async(startLine, startPoint){
+//Weird bug or feature of canvas?? : ending of the previous line gets a tiny bit wider at the end when a new line is drawn
+var pleaseRedrawEverything = false;
+async function draw_upto_latest_point_async(startLine, startPoint){
+	//Don't keep redrawing the same last point over and over
+	if(!pleaseRedrawEverything && startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) return;
+	
+	var fullRedraw = false;//keep track if this call started a full redraw to unset pleaseRedrawEverything flag later.
+	if (pleaseRedrawEverything) {// erase everything and draw from start
+	fullRedraw = true;
+	startLine = 0;
+	startPoint = 0;
+	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+	}
 	for(var i = startLine; i < arrays_of_points.length; i++){ 
+		lastLine = i;
 		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
-		//p1 filled in at the start of loop
+		//take the 2 previous points in addition to current one at the start of the loop.
 		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
 		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-			startPoint = j;
+			lastPoint = j;
 			p1 = p2;
 			p2 = p3;
 			p3 = arrays_of_points[i][j];
 			draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
         }
-        
-        if(i != lastLine){
-            lastPoint = 0;
-            lastLine = i;
-        }
+		startPoint = 0;
     }
+	if (fullRedraw) {//finished full redraw can unset redraw all flag so no more full redraws until necesarry
+	pleaseRedrawEverything = false;
+	fullRedraw = false;
+	lastLine = 0;
+	lastPoint = 0;
+	}
 }
 
 var drawingWithPressurePenOnly = false; // hack for drawing with 2 main pointers when using a presure sensitive pen
@@ -396,21 +415,21 @@ canvas.addEventListener("pointerdown", function (e) {
 	if (!e.isPrimary) { return; }
 	if (e.pointerType[0] == 'p') { drawingWithPressurePenOnly = true }
 	else if ( drawingWithPressurePenOnly) { return; }
-    if(!isMouseDown){
+    if(!isPointerDown){
         event.preventDefault();
         arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]]);
         ts_undo_button.className = "active"
-		isMouseDown = true;
+		isPointerDown = true;
     }
 });
 
 canvas.addEventListener("pointermove", function (e) {
 	if (!e.isPrimary) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
-    if (isMouseDown && active) {
+    if (isPointerDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
@@ -422,14 +441,13 @@ window.addEventListener("pointerup",function (e) {
     /* Needed for the last bit of the drawing. */
 	if (!e.isPrimary) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
-   /*  if (isMouseDown && active) {
+     if (isPointerDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (e.pressure * line_width * 2) : line_width]);
-    } */
-	drawingWithPressurePenOnly = false;
-    isMouseDown = false;
+    } 
+	stop_drawing();
 });
 
 document.addEventListener('keyup', function(e) {
@@ -438,15 +456,16 @@ document.addEventListener('keyup', function(e) {
 		e.preventDefault()
         ts_undo()
     }
-    // .
+    // /
     if (e.key === ".") {
         clear_canvas()
     }
 	// ,
-    if (e.key === ".") {
+    if (e.key === ",") {
         switch_visibility()
     }
 })
+
 
 </script>
 """
