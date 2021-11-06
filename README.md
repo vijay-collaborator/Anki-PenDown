@@ -1,6 +1,29 @@
-# Anki-TouchScreen
-Touch screen functionality for Anki
+# Anki-StylusDraw
+Improvements upon the Anki-TouchScreen addon to add pressure pen functionality.
 
+Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
+
+ <a href="https://rytisgit.github.io/Anki-StylusDraw/">
+    <img alt="Draw Demonstration" src="docs/snaaaaaaake.gif" width="75%">
+  </a><br>
+
+# Changes
+* Added pressure sensitivity
+* Increased drawing speed
+* Added <kbd>,</kbd> for showing/hiding and <kbd>.</kbd> for clearing
+* Added standalone website to test drawing
+* Work around a Windows Pen bug which makes 2 primary pointers appear when drawing in Anki
+
+## My hardware
+I use a Huion H1161 with Windows Pen enabled and it works perfectly.
+### For best exprience dont use software rendering and turn on use pen as a mouse
+<table><tr>
+<td> <img alt="Dont use software rendering in Anki settings" src="docs/dontUseSoftwareRendering.png"> </td>
+<td> <img alt="Check use pen as mouse in Windows pen settings" src="docs/usePenAsMouse.png"> </td>
+</tr></table>
+
+# Old Description
+  
 Implements same drawing/writing mechanism as in AnkiDroid. Your writing is NOT intended to remain on the cards after review - same as in AnkiDroid.
 
 Use the menu `View` → `TouchScreen` to activate/change settings.
