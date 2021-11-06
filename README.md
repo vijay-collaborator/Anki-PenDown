@@ -1,9 +1,9 @@
-# Anki-PressureDrawing
+# Anki-StylusDraw
 Improvements upon the Anki-TouchScreen addon to add pressure pen functionality.
 
-Website to test the drawing functionality: https://rytisgit.github.io/Anki-PressureDrawing/
+Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
 
- <a href="https://rytisgit.github.io/Anki-PressureDrawing/">
+ <a href="https://rytisgit.github.io/Anki-StylusDraw/">
     <img alt="Draw Demonstration" src="docs/snaaaaaaake.gif" width="75%">
   </a><br>
 
