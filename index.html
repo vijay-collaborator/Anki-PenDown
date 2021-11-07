@@ -1,8 +1,17 @@
-<html><head></head><body style="background: black;"><div id="canvas_wrapper" style="touch-action: none;">
+<html><head>
+    <script src="caligrapher/math.js"></script>
+    <script src="caligrapher/vector.js"></script>
+    <script src="caligrapher/curveFitting.js"></script>
+    <script src="caligrapher/bezier.js"></script>
+    <script src="caligrapher/corners.js"></script>
+    <script src="caligrapher/character.js"></script>
+    <script src="caligrapher/strokeDrawing.js"></script>
+</head><body style="background: rgb(255, 239, 213);"><div id="canvas_wrapper" style="touch-action: none;">
     <canvas id="main_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
 </div>
 <div id="pencil_button_bar">
     <input type="button" class="active" onclick="active=!active;switch_visibility();switch_class(this, 'active');" value="Hide" title="Toggle visiblity">
+    <input type="button" class="" onclick="switch_drawing_mode();switch_class(this, 'active');" value="漢字" title="Toggle calligrapher">
     <input type="button" onclick="ts_undo();" value="Undo" title="Undo the last stroke" id="ts_undo_button" class="active">
     <input type="button" class="active" onclick="clear_canvas();" value="Clean" title="Clean whiteboard">
 </div>
@@ -71,11 +80,13 @@ body::-webkit-scrollbar {
 
 <script>
 var visible = true;
+var calligraphy = false;
 var canvas = document.getElementById('main_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
 var ctx = canvas.getContext('2d');
 var arrays_of_points = [ ];
+var line_type_history = [ ];
 var color = 'grey';
 var line_width = 4;
 var card = true;
@@ -85,6 +96,7 @@ wrapper.onselectstart = function() { return false; };
 
 function switch_visibility()
 {
+    stop_drawing();
     if (visible)
     {
         canvas.style.display='none';
@@ -94,6 +106,20 @@ function switch_visibility()
         canvas.style.display='block';
     }
     visible = !visible;
+}
+
+//Initialize event listeners at the start;
+canvas.addEventListener("pointerdown", pointerDownLine);
+canvas.addEventListener("pointermove", pointerMoveLine);
+window.addEventListener("pointerup", pointerUpLine);
+canvas.addEventListener("pointerdown", pointerDownCaligraphy);
+canvas.addEventListener("pointermove", pointerMoveCaligraphy);
+window.addEventListener("pointerup", pointerUpCaligraphy);
+
+function switch_drawing_mode()
+{
+    stop_drawing();
+    calligraphy = !calligraphy;
 }
 
 function switch_class(e,c)
@@ -152,9 +178,20 @@ function update_pen_settings(){
 }
 
 function ts_undo(){
-	stop_drawing();//doesnt work right? to stop drawing afer undo
-    arrays_of_points.pop()
-    if(!arrays_of_points.length)
+	stop_drawing();
+    switch (line_type_history.pop()) {
+        case 'C'://Calligraphy
+            strokes.pop();    
+            break;
+        case 'L'://Simple Lines
+            arrays_of_points.pop()
+            break;
+        default://how did you get here??
+            console.log("Unrecognized line type for undo") 
+            break;
+    }
+    
+    if(!line_type_history.length)
     {
         ts_undo_button.className = ""
     }
@@ -169,13 +206,20 @@ function clear_canvas()
 {
 	//don't continue to put points into an empty array(pointermove) if clearing while drawing on the canvas
 	stop_drawing();
-    arrays_of_points=[];
+    arrays_of_points = [];
+    strokes = [];
+    line_type_history = [];
 	ts_redraw();
 }
 
-function stop_drawing(){
+function stop_drawing() {
 	isPointerDown = false;
 	drawingWithPressurePenOnly = false;
+}
+
+function start_drawing() {
+    ts_undo_button.className = "active"
+    isPointerDown = true;
 }
 
 function draw_last_line_segment() {
@@ -199,7 +243,8 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 var pleaseRedrawEverything = false;
 async function draw_upto_latest_point_async(startLine, startPoint){
 	//Don't keep redrawing the same last point over and over
-	if(!pleaseRedrawEverything && startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) return;
+	if(!pleaseRedrawEverything && 
+    startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) return;
 	
 	var fullRedraw = false;//keep track if this call started a full redraw to unset pleaseRedrawEverything flag later.
 	if (pleaseRedrawEverything) {// erase everything and draw from start
@@ -208,14 +253,15 @@ async function draw_upto_latest_point_async(startLine, startPoint){
 	startPoint = 0;
 	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	}
-	for(var i = startLine; i < arrays_of_points.length; i++){ 
+
+	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
 		lastLine = i;
 		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
 		//take the 2 previous points in addition to current one at the start of the loop.
 		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
 		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-			lastPoint = j;
+			lastPoint = j;//track which point was last drawn so we can pick up where we left off on the next refresh.
 			p1 = p2;
 			p2 = p3;
 			p3 = arrays_of_points[i][j];
@@ -223,18 +269,22 @@ async function draw_upto_latest_point_async(startLine, startPoint){
         }
 		startPoint = 0;
     }
-	if (fullRedraw) {//finished full redraw can unset redraw all flag so no more full redraws until necesarry
-	pleaseRedrawEverything = false;
+
+	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
+    for(var i = 0; i < strokes.length; i++){//Draw Calligraphy Strokes by redrawing everything, to erase guide line
+        strokes[i].draw(WEIGHT, ctx);//TODO don't redraw everything just to erase the guide line
+    }
+    pleaseRedrawEverything = false;
 	fullRedraw = false;
-	lastLine = 0;
-	lastPoint = 0;
+    lastLine = 0;
+    lastPoint = 0;
 	}
 }
 
 var drawingWithPressurePenOnly = false; // hack for drawing with 2 main pointers when using a presure sensitive pen
 
-canvas.addEventListener("pointerdown", function (e) {
-	if (!e.isPrimary) { return; }
+function pointerDownLine(e) {
+	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] == 'p') { drawingWithPressurePenOnly = true }
 	else if ( drawingWithPressurePenOnly) { return; }
     if(!isPointerDown){
@@ -243,13 +293,12 @@ canvas.addEventListener("pointerdown", function (e) {
 			e.offsetX,
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]]);
-        ts_undo_button.className = "active"
-		isPointerDown = true;
+        start_drawing();
     }
-});
+}
 
-canvas.addEventListener("pointermove", function (e) {
-	if (!e.isPrimary) { return; }
+function pointerMoveLine(e) {
+	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
     if (isPointerDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
@@ -257,35 +306,148 @@ canvas.addEventListener("pointermove", function (e) {
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]);
     }
-});
+}
 
-window.addEventListener("pointerup",function (e) {
+function pointerUpLine(e) {
     /* Needed for the last bit of the drawing. */
-	if (!e.isPrimary) { return; }
+	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
      if (isPointerDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
 			e.pointerType[0] == 'p' ? (e.pressure * line_width * 2) : line_width]);
+        line_type_history.push('L');//Add new Simple line marker to shared history
     } 
 	stop_drawing();
-});
+}
 
 document.addEventListener('keyup', function(e) {
-    // Z or z or .
-    if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey || e.key === ".") {
-		e.preventDefault()
-        ts_undo()
+    // alt + Z or z
+    if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey) {
+		e.preventDefault();
+        ts_undo();
     }
     // /
     if (e.key === "/") {
-        clear_canvas()
+        clear_canvas();
     }
 	// ,
     if (e.key === ",") {
-        switch_visibility()
+        switch_visibility();
+    }
+    // alt + C or c
+    if ((e.key === "c" || e.key === "C") && e.altKey) {
+        switch_drawing_mode();
     }
 })
+
+/*
+ -------------------------------- Part of Caligrapher ------------------------------------------
+ Created By: August Toman-Yih
+ Git Repository: https://github.com/atomanyih/Calligrapher
+*/
+/* ------------------------------        script.js        -----------------------------*/
+//Modified to work with current canvas and board
+//share the same canvas with pressure drawing
+ /*var canvas = document.getElementById('canvas'),
+    width = canvas.width,
+    height = canvas.height,
+    context = canvas.getContext("2d");
+	*/
+
+function drawCircle(x,y,r,ctx) {
+    ctx.beginPath();
+    ctx.arc(x,y,r, 0, 2*Math.PI,false);
+    //ctx.fill();
+    ctx.stroke();
+}
+
+function drawLine(x0,y0,x1,y1,ctx) {
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(x1,y1);
+    ctx.stroke();
+}
+
+
+//FIXME REORGANIZE EBERYTING
+//--- constants ---//
+RESOLUTION = 4; 
+WEIGHT = 15;
+MIN_MOUSE_DIST = 5;
+SPLIT_THRESHOLD = 8;
+SQUARE_SIZE = 300;
+    
+//--- variables ---//
+strokes = [];
+points = [];
+lines = [];
+currentPath = [];
+errPoint = [];
+//use shared isPointerDown instead
+//mouseDown = false;
+
+// // share update function with pressure drawing so they don't clearRect eachother
+// function update() {
+//     ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+//     for(var i = 0; i<strokes.length; i++)
+//         strokes[i].draw(WEIGHT,ctx);
+// }
+
+function drawCurrentPath() {//maybe will have issues with this due to not clearing the screen and redrawing all stokes each time
+    ctx.beginPath();
+    ctx.moveTo(currentPath[0][0],currentPath[0][1]);
+    for(var i = 1; i<currentPath.length; i++) 
+        ctx.lineTo(currentPath[i][0],currentPath[i][1]);
+    ctx.stroke();
+}
+
+function pointerDownCaligraphy(e) {
+    if (!e.isPrimary || !calligraphy) { return; }
+    event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
+    start_drawing();
+};
+
+function pointerMoveCaligraphy(e) {
+    if (!e.isPrimary || !calligraphy) { return; }
+    if(isPointerDown) {
+        var mousePos = [e.offsetX, e.offsetY];
+        if(currentPath.length != 0) {
+            if(getDist(mousePos,currentPath[currentPath.length-1])>=MIN_MOUSE_DIST)
+                currentPath.push(mousePos);
+            drawCurrentPath();
+        } else
+            currentPath.push(mousePos);
+    } 
+};
+
+function pointerUpCaligraphy(e) {
+    if (!e.isPrimary || !calligraphy || !currentPath.length) { return; }
+    stop_drawing();
+    points = currentPath;
+    
+    var curves = fitStroke(points);
+    
+    strokes.push(new Stroke(curves));
+    
+    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
+    currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
+    ts_redraw();
+};
+
+// // handled in ts_undo()
+// keydown = function(event) {
+//     var k = event.keyCode;
+//     console.log(k);
+//     if(k==68) {
+//         strokes.pop();
+//     }
+//     update();
+// };
+//
+//window.addEventListener("keydown",keydown,true);
+//
+//update();
 
 </script></body></html>
