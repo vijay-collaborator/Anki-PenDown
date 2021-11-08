@@ -7,31 +7,31 @@
     <script src="caligrapher/character.js"></script>
     <script src="caligrapher/strokeDrawing.js"></script>
 </head><body style="background: rgb(255, 239, 213);"><div id="canvas_wrapper" style="touch-action: none;">
+    <canvas id="secondary_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
     <canvas id="main_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
 </div>
 <div id="pencil_button_bar">
     <input type="button" class="active" onclick="active=!active;switch_visibility();switch_class(this, 'active');" value="Hide" title="Toggle visiblity">
-    <input type="button" class="" onclick="switch_drawing_mode();switch_class(this, 'active');" value="漢字" title="Toggle calligrapher">
+    <input type="button" class="" onclick="switch_drawing_mode();switch_class(this, 'active');" value="漢字" id="ts_kanji_button" title="Toggle calligrapher">
     <input type="button" onclick="ts_undo();" value="Undo" title="Undo the last stroke" id="ts_undo_button" class="active">
     <input type="button" class="active" onclick="clear_canvas();" value="Clean" title="Clean whiteboard">
 </div>
 <style>
 body {
-  //overflow-y: hidden; /* Hide vertical scrollbar */
   overflow-x: hidden; /* Hide horizontal scrollbar */
 }
 body::-webkit-scrollbar {
   display: none;
 }
 
-#canvas_wrapper, #main_canvas
+#canvas_wrapper, #main_canvas, #secondary_canvas
 {
     position:absolute;
     top: 0px;
     left: 0px;
     z-index: 999;
 }
-#main_canvas{
+#main_canvas, #secondary_canvas{
     opacity: """ + str(ts_opacity) + """;
 	//pointer-events:none
 }
@@ -82,9 +82,12 @@ body::-webkit-scrollbar {
 var visible = true;
 var calligraphy = false;
 var canvas = document.getElementById('main_canvas');
+var secondary_canvas = document.getElementById('secondary_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
+var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ctx = canvas.getContext('2d');
+var secondary_ctx = secondary_canvas.getContext('2d');
 var arrays_of_points = [ ];
 var line_type_history = [ ];
 var color = 'grey';
@@ -92,6 +95,7 @@ var line_width = 4;
 var card = true;
 
 canvas.onselectstart = function() { return false; };
+secondary_canvas.onselectstart = function() { return false; };
 wrapper.onselectstart = function() { return false; };
 
 function switch_visibility()
@@ -100,10 +104,12 @@ function switch_visibility()
     if (visible)
     {
         canvas.style.display='none';
+        secondary_canvas.style.display=canvas.style.display;
     }
     else
     {
         canvas.style.display='block';
+        secondary_canvas.style.display=canvas.style.display;
     }
     visible = !visible;
 }
@@ -119,6 +125,13 @@ window.addEventListener("pointerup", pointerUpCaligraphy);
 function switch_drawing_mode()
 {
     stop_drawing();
+    if(!calligraphy)
+    {
+        ts_kanji_button.className = ''
+    }
+    else{
+        ts_kanji_button.className = 'active'
+    }
     calligraphy = !calligraphy;
 }
 
@@ -143,20 +156,27 @@ function resize() {
         window.innerHeight,
         card ? card.scrollHeight : 0
     )-1;
+    secondary_ctx.canvas.width = ctx.canvas.width;
+    secondary_ctx.canvas.height = ctx.canvas.height;
 
     canvas.style.height = ctx.canvas.height + 'px';
+    secondary_canvas.style.height = canvas.style.height;
     wrapper.style.width = ctx.canvas.width + 'px';
 	/* Get DPR with 1 as fallback */
     var dpr = window.devicePixelRatio || 1;
     dpr = dpr > 1 ? dpr : 1;
     /* CSS size is the same */
     canvas.style.height = ctx.canvas.height + 'px';
+    secondary_canvas.style.height = canvas.style.height;
     wrapper.style.width = ctx.canvas.width + 'px';
     
     /* Increase DOM size and scale */
     ctx.canvas.width *= dpr;
     ctx.canvas.height *= dpr;
     ctx.scale(dpr, dpr);
+    secondary_ctx.canvas.width *= dpr;
+    secondary_ctx.canvas.height *= dpr;
+    secondary_ctx.scale(dpr, dpr);
     update_pen_settings()
 }
 
@@ -174,6 +194,9 @@ function update_pen_settings(){
     ctx.lineJoin = ctx.lineCap = 'round';
     ctx.lineWidth = line_width;
     ctx.strokeStyle = color;
+    secondary_ctx.lineJoin = ctx.lineJoin;
+    secondary_ctx.lineWidth = ctx.lineWidth;
+    secondary_ctx.strokeStyle = ctx.strokeStyle;
     ts_redraw()
 }
 
@@ -224,11 +247,12 @@ function start_drawing() {
 
 function draw_last_line_segment() {
     window.requestAnimationFrame(draw_last_line_segment);
-    draw_upto_latest_point_async(lastLine, lastPoint)
+    draw_upto_latest_point_async(lastLine, lastPoint, lastStroke);
 }
 
 var lastLine = 0;
 var lastPoint = 0;
+var lastStroke = 0;
 var p1,p2,p3;
 
 async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, endY, lineWidth) {
@@ -241,16 +265,18 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 };
 //Weird bug or feature of canvas?? : ending of the previous line gets a tiny bit wider at the end when a new line is drawn
 var pleaseRedrawEverything = false;
-async function draw_upto_latest_point_async(startLine, startPoint){
+async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	//Don't keep redrawing the same last point over and over
 	if(!pleaseRedrawEverything && 
-    startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) return;
-	
+    (startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) && 
+    !(startStroke == 0 && strokes.length == 1) && (startStroke == strokes.length-1)) return;
+
 	var fullRedraw = false;//keep track if this call started a full redraw to unset pleaseRedrawEverything flag later.
 	if (pleaseRedrawEverything) {// erase everything and draw from start
 	fullRedraw = true;
 	startLine = 0;
 	startPoint = 0;
+    startStroke = 0;
 	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	}
 
@@ -270,14 +296,17 @@ async function draw_upto_latest_point_async(startLine, startPoint){
 		startPoint = 0;
     }
 
-	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
-    for(var i = 0; i < strokes.length; i++){//Draw Calligraphy Strokes by redrawing everything, to erase guide line
-        strokes[i].draw(WEIGHT, ctx);//TODO don't redraw everything just to erase the guide line
+    for(var i = startStroke; i < strokes.length; i++){//Draw Calligraphy Strokes by redrawing everything, to erase guide line
+        lastStroke = i;
+        strokes[i].draw(WEIGHT, ctx);
     }
+
+	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
     pleaseRedrawEverything = false;
 	fullRedraw = false;
     lastLine = 0;
     lastPoint = 0;
+    lastStroke = 0;
 	}
 }
 
@@ -396,11 +425,12 @@ errPoint = [];
 // }
 
 function drawCurrentPath() {//maybe will have issues with this due to not clearing the screen and redrawing all stokes each time
-    ctx.beginPath();
-    ctx.moveTo(currentPath[0][0],currentPath[0][1]);
-    for(var i = 1; i<currentPath.length; i++) 
-        ctx.lineTo(currentPath[i][0],currentPath[i][1]);
-    ctx.stroke();
+    secondary_ctx.beginPath();
+    secondary_ctx.moveTo(currentPath[0][0],currentPath[0][1]);
+    for(var i = 1; i<currentPath.length; i++) {
+        secondary_ctx.lineTo(currentPath[i][0],currentPath[i][1]);
+    } 
+    secondary_ctx.stroke();
 }
 
 function pointerDownCaligraphy(e) {
@@ -433,7 +463,7 @@ function pointerUpCaligraphy(e) {
     
     line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
-    ts_redraw();
+    secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
 };
 
 // // handled in ts_undo()
