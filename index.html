@@ -330,7 +330,7 @@ function pointerDownLine(e) {
         arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]]);
+			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]]);
         start_drawing();
     }
 }
@@ -342,7 +342,7 @@ function pointerMoveLine(e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'p' ? (0.5 + e.pressure * line_width * 2) : line_width]);
+			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]);
     }
 }
 
@@ -354,7 +354,7 @@ function pointerUpLine(e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
-			e.pointerType[0] == 'p' ? (e.pressure * line_width * 2) : line_width]);
+			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]);
         line_type_history.push('L');//Add new Simple line marker to shared history
     } 
 	stop_drawing();
