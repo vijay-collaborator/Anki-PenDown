@@ -225,6 +225,11 @@ function ts_redraw() {
 	pleaseRedrawEverything = true;
 }
 
+function ts_clear() {
+	pleaseRedrawEverything = true;
+    fullClear = true;
+}
+
 function clear_canvas()
 {
 	//don't continue to put points into an empty array(pointermove) if clearing while drawing on the canvas
@@ -232,7 +237,7 @@ function clear_canvas()
     arrays_of_points = [];
     strokes = [];
     line_type_history = [];
-	ts_redraw();
+	ts_clear();
 }
 
 function stop_drawing() {
@@ -247,29 +252,29 @@ function start_drawing() {
 
 function draw_last_line_segment() {
     window.requestAnimationFrame(draw_last_line_segment);
-    draw_upto_latest_point_async(lastLine, lastPoint, lastStroke);
+    draw_upto_latest_point_async(nextLine, nextPoint, nextStroke);
 }
 
-var lastLine = 0;
-var lastPoint = 0;
-var lastStroke = 0;
+var nextLine = 0;
+var nextPoint = 0;
+var nextStroke = 0;//GOD please just let me draw the first stroke like all the others, maybe similar bug in lastline/point
 var p1,p2,p3;
 
 async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, endY, lineWidth) {
 		ctx.beginPath();
-		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));
+		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));//midpoint calculation for x and y
 		ctx.quadraticCurveTo(midX, midY, (midX + (endX - midX) / 2), (midY + (endY - midY)/ 2));
-		//ctx.lineTo(endX, endY);
 		ctx.lineWidth = lineWidth;
 		ctx.stroke();
 };
 //Weird bug or feature of canvas?? : ending of the previous line gets a tiny bit wider at the end when a new line is drawn
 var pleaseRedrawEverything = false;
+var fullClear = false;
 async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	//Don't keep redrawing the same last point over and over
-	if(!pleaseRedrawEverything && 
-    (startLine == arrays_of_points.length-1 && startPoint == arrays_of_points[startLine].length-1) && 
-    !(startStroke == 0 && strokes.length == 1) && (startStroke == strokes.length-1)) return;
+	//if(!pleaseRedrawEverything && 
+    //(startLine == arrays_of_points.length && startPoint == arrays_of_points[startLine-1].length) && 
+    //(startStroke == strokes.length)) return;
 
 	var fullRedraw = false;//keep track if this call started a full redraw to unset pleaseRedrawEverything flag later.
 	if (pleaseRedrawEverything) {// erase everything and draw from start
@@ -281,13 +286,13 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	}
 
 	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
-		lastLine = i;
+		nextLine = i;
 		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
 		//take the 2 previous points in addition to current one at the start of the loop.
 		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
 		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-			lastPoint = j;//track which point was last drawn so we can pick up where we left off on the next refresh.
+			nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
 			p1 = p2;
 			p2 = p3;
 			p3 = arrays_of_points[i][j];
@@ -295,18 +300,22 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
         }
 		startPoint = 0;
     }
-
-    for(var i = startStroke; i < strokes.length; i++){//Draw Calligraphy Strokes by redrawing everything, to erase guide line
-        lastStroke = i;
+    //Draw Calligraphy Strokes one by one, with a hack for undo setting next stroke
+    for(var i = startStroke; i < strokes.length; i++){
+        nextStroke = i+1;
         strokes[i].draw(WEIGHT, ctx);
     }
 
 	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
     pleaseRedrawEverything = false;
 	fullRedraw = false;
-    lastLine = 0;
-    lastPoint = 0;
-    lastStroke = 0;
+    nextPoint = 0;//since we stopped drawing in redraw, next draw is definitely a new line(also a hack for undo setting it to 0 fixes stuff)
+    nextStroke = strokes.length == 0 ? 0 : nextStroke;//reset for undo as well
+        if(fullClear){// start again from 0.
+            nextLine = 0;
+            nextStroke = 0;
+            fullClear = false;
+        }
 	}
 }
 
