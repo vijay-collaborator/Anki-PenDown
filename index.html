@@ -11,7 +11,7 @@
     <canvas id="main_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
 </div>
 <div id="pencil_button_bar">
-    <input type="button" class="active" onclick="active=!active;switch_visibility();switch_class(this, 'active');" value="Hide" title="Toggle visiblity">
+    <input type="button" class="active" onclick="active=!active;switch_visibility();switch_class(this, 'active');" id="ts_visibility_button" value="Hide" title="Toggle visiblity">
     <input type="button" class="" onclick="switch_drawing_mode();switch_class(this, 'active');" value="漢字" id="ts_kanji_button" title="Toggle calligrapher">
     <input type="button" onclick="ts_undo();" value="Undo" title="Undo the last stroke" id="ts_undo_button" class="active">
     <input type="button" class="active" onclick="clear_canvas();" value="Clean" title="Clean whiteboard">
@@ -85,6 +85,7 @@ var canvas = document.getElementById('main_canvas');
 var secondary_canvas = document.getElementById('secondary_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
+var ts_visibility_button = document.getElementById('ts_visibility_button');
 var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ctx = canvas.getContext('2d');
 var secondary_ctx = secondary_canvas.getContext('2d');
@@ -105,9 +106,11 @@ function switch_visibility()
     {
         canvas.style.display='none';
         secondary_canvas.style.display=canvas.style.display;
+        ts_visibility_button.className = '';
     }
     else
     {
+        ts_visibility_button.className = 'active';
         canvas.style.display='block';
         secondary_canvas.style.display=canvas.style.display;
     }
@@ -127,10 +130,10 @@ function switch_drawing_mode()
     stop_drawing();
     if(!calligraphy)
     {
-        ts_kanji_button.className = ''
+        ts_kanji_button.className = 'active';
     }
     else{
-        ts_kanji_button.className = 'active'
+        ts_kanji_button.className = '';
     }
     calligraphy = !calligraphy;
 }
@@ -367,15 +370,18 @@ document.addEventListener('keyup', function(e) {
         ts_undo();
     }
     // /
-    if (e.key === "/") {
+    if (e.key === ".") {
+        e.preventDefault();
         clear_canvas();
     }
 	// ,
     if (e.key === ",") {
+        e.preventDefault();
         switch_visibility();
     }
     // alt + C or c
     if ((e.key === "c" || e.key === "C") && e.altKey) {
+        e.preventDefault();
         switch_drawing_mode();
     }
 })
@@ -462,8 +468,9 @@ function pointerMoveCaligraphy(e) {
 };
 
 function pointerUpCaligraphy(e) {
-    if (!e.isPrimary || !calligraphy || !currentPath.length) { return; }
     stop_drawing();
+    if (!e.isPrimary || !calligraphy || !currentPath.length) { return; }
+    
     points = currentPath;
     
     var curves = fitStroke(points);
