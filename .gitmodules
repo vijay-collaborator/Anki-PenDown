@@ -1,0 +1,4 @@
+[submodule "caligrapher"]
+	path = caligrapher
+	url = https://github.com/Rytisgit/Calligrapher.git
+	branch = prepare_for_integration
