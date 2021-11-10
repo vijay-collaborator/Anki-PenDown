@@ -1,16 +1,17 @@
 # Anki-StylusDraw
-Improvements upon the Anki-TouchScreen addon to add pressure pen functionality.
+Improvements upon the Anki-TouchScreen addon to add pressure pen and calligrapher functionality.
 
 Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
 
  <a href="https://rytisgit.github.io/Anki-StylusDraw/">
-    <img alt="Draw Demonstration" src="docs/snaaaaaaake.gif" width="75%">
+    <img alt="Draw Demonstration" src="docs/kanji.gif" width="75%">
   </a><br>
 
 # Changes
+* Added Calligrapher mode(https://github.com/atomanyih/Calligrapher)
 * Added pressure sensitivity
 * Increased drawing speed
-* Added <kbd>,</kbd> for showing/hiding and <kbd>.</kbd> for clearing
+* Added <kbd>,</kbd> for showing/hiding, <kbd>.</kbd> for clearing and <kbd>alt + c</kbd> for calligrapher mode
 * Added standalone website to test drawing
 * Work around a Windows Pen bug which makes 2 primary pointers appear when drawing in Anki
 
