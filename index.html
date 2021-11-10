@@ -31,9 +31,10 @@ body::-webkit-scrollbar {
     left: 0px;
     z-index: 999;
 }
+
 #main_canvas, #secondary_canvas{
     opacity: """ + str(ts_opacity) + """;
-	//pointer-events:none
+	pointer-events:auto;
 }
 .night_mode #pencil_button_bar input[type=button].active
 {
@@ -55,11 +56,10 @@ body::-webkit-scrollbar {
 {
     border: 1px solid black;
     margin: 0 1px;
-    display: inline-block;
     float: left;
     width: 120px!important;
-    font-size: 100%;
-    line-height: 60%;
+    font-size: 40px;
+    line-height: 40px;
     height: 80px;
     border-radius: 8px;
     background-color: rgba(250,250,250,0.5)!important;
@@ -136,7 +136,6 @@ function switch_drawing_mode()
     else{
         ts_kanji_button.className = '';
     }
-    
 }
 
 function switch_class(e,c)
@@ -168,8 +167,9 @@ function resize() {
     dpr = dpr > 1 ? dpr : 1;
     /* CSS size is the same */
     canvas.style.height = ctx.canvas.height + 'px';
-    secondary_canvas.style.height = canvas.style.height;
     wrapper.style.width = ctx.canvas.width + 'px';
+    secondary_canvas.style.height = canvas.style.height;
+    secondary_canvas.style.width = canvas.style.width;
     
     /* Increase DOM size and scale */
     ctx.canvas.width *= dpr;
@@ -178,6 +178,7 @@ function resize() {
     secondary_ctx.canvas.width *= dpr;
     secondary_ctx.canvas.height *= dpr;
     secondary_ctx.scale(dpr, dpr);
+
     update_pen_settings()
 }
 
@@ -301,7 +302,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
         }
 		startPoint = 0;
     }
-    //Draw Calligraphy Strokes one by one, with a hack for undo setting next stroke
+    //Draw Calligraphy Strokes one by one starting from the given point
     for(var i = startStroke; i < strokes.length; i++){
         nextStroke = i+1;
         strokes[i].draw(WEIGHT, ctx);
@@ -395,21 +396,6 @@ document.addEventListener('keyup', function(e) {
     height = canvas.height,
     context = canvas.getContext("2d");
 	*/
-
-function drawCircle(x,y,r,ctx) {
-    ctx.beginPath();
-    ctx.arc(x,y,r, 0, 2*Math.PI,false);
-    //ctx.fill();
-    ctx.stroke();
-}
-
-function drawLine(x0,y0,x1,y1,ctx) {
-    ctx.beginPath();
-    ctx.moveTo(x0,y0);
-    ctx.lineTo(x1,y1);
-    ctx.stroke();
-}
-
 
 //FIXME REORGANIZE EBERYTING
 //--- constants ---//
