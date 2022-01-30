@@ -2,3 +2,7 @@
 	path = caligrapher
 	url = https://github.com/Rytisgit/Calligrapher.git
 	branch = prepare_for_integration
+[submodule "perfectFreehand"]
+	path = perfectFreehand
+	url = https://github.com/Rytisgit/perfect-freehand.git
+	branch = compiled_js_for_import

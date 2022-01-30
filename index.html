@@ -6,16 +6,19 @@
     <script src="caligrapher/corners.js"></script>
     <script src="caligrapher/character.js"></script>
     <script src="caligrapher/strokeDrawing.js"></script>
+    <script src="./perfectFreehand/packages/perfect-freehand/src/compliedJs/getStroke.js"></script>
 </head><body style="background: rgb(255, 239, 213);"><div id="canvas_wrapper" style="touch-action: none;">
     <canvas id="secondary_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
     <canvas id="main_canvas" width="2562" height="1309" style="height: 1309px;"></canvas>
 </div>
 <div id="pencil_button_bar">
     <input type="button" class="active" onclick="active=!active;switch_visibility()" id="ts_visibility_button" value="Hide" title="Toggle visiblity">
+    <input type="button" class="active" onclick="switch_perfect_freehand()" id="ts_perfect_freehand_button" value="Perf" title="Perfect Freehand">
     <input type="button" class="" onclick="switch_drawing_mode()" value="漢字" id="ts_kanji_button" title="Toggle calligrapher">
     <input type="button" onclick="ts_undo();" value="Undo" title="Undo the last stroke" id="ts_undo_button" class="active">
     <input type="button" class="active" onclick="clear_canvas();" value="Clean" title="Clean whiteboard">
 </div>
+
 <style>
 body {
   overflow-x: hidden; /* Hide horizontal scrollbar */
@@ -81,16 +84,19 @@ body::-webkit-scrollbar {
 <script>
 var visible = true;
 var calligraphy = false;
+var perfectFreehand = true;
 var canvas = document.getElementById('main_canvas');
 var secondary_canvas = document.getElementById('secondary_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
 var ts_visibility_button = document.getElementById('ts_visibility_button');
 var ts_kanji_button = document.getElementById('ts_kanji_button');
+var ts_perfect_freehand_button = document.getElementById('ts_perfect_freehand_button');
 var ctx = canvas.getContext('2d');
 var secondary_ctx = secondary_canvas.getContext('2d');
 var arrays_of_points = [ ];
 var line_type_history = [ ];
+var perfect_cache = [ ];
 var color = 'grey';
 var line_width = 4;
 var card = true;
@@ -115,6 +121,20 @@ function switch_visibility()
         secondary_canvas.style.display=canvas.style.display;
     }
     visible = !visible;
+}
+
+function switch_perfect_freehand()
+{
+    stop_drawing();
+    perfectFreehand = !perfectFreehand;
+    if(perfectFreehand)
+    {
+        ts_perfect_freehand_button.className = 'active';
+    }
+    else{
+        ts_perfect_freehand_button.className = '';
+    }
+    ts_redraw()
 }
 
 //Initialize event listeners at the start;
@@ -196,6 +216,7 @@ function update_pen_settings(){
     ctx.lineJoin = ctx.lineCap = 'round';
     ctx.lineWidth = line_width;
     ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     secondary_ctx.lineJoin = ctx.lineJoin;
     secondary_ctx.lineWidth = ctx.lineWidth;
     secondary_ctx.strokeStyle = ctx.strokeStyle;
@@ -209,10 +230,12 @@ function ts_undo(){
             strokes.pop();    
             break;
         case 'L'://Simple Lines
+            var index = arrays_of_points.length-1
             arrays_of_points.pop()
+            perfect_cache[index] = null;
             break;
-        default://how did you get here??
-            console.log("Unrecognized line type for undo") 
+        default:
+            //console.log("Unrecognized line type for undo") 
             break;
     }
     
@@ -237,6 +260,7 @@ function clear_canvas()
 	//don't continue to put points into an empty array(pointermove) if clearing while drawing on the canvas
 	stop_drawing();
     arrays_of_points = [];
+    perfect_cache = [];
     strokes = [];
     line_type_history = [];
 	ts_clear();
@@ -270,6 +294,9 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 		ctx.stroke();
 };
 
+function is_last_path_and_currently_drawn(i){
+    return (isPointerDown && arrays_of_points.length-1 == i)//the path is complete unless its the last of the array and the pointer is still down
+}
 var pleaseRedrawEverything = false;
 var fullClear = false;
 async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
@@ -288,19 +315,35 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	}
 
 	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
+        var needPerfectDraw = false;
 		nextLine = i;
-		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
-		//take the 2 previous points in addition to current one at the start of the loop.
-		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
-		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
+        ///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
+        //take the 2 previous points in addition to current one at the start of the loop.
+        p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
+        p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-			nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
-			p1 = p2;
-			p2 = p3;
-			p3 = arrays_of_points[i][j];
-			draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[2]);
+
+            nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
+            p1 = p2;
+            p2 = p3;
+            p3 = arrays_of_points[i][j];
+            if(!perfectFreehand){
+                draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[3]);
+            }
+            else {needPerfectDraw = true;}
+            
         }
-		startPoint = 0;
+        startPoint = 0;
+        if(needPerfectDraw) {
+                var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i) ? new Path2D(
+                    getFreeDrawSvgPath(
+                        arrays_of_points[i],
+                        !is_last_path_and_currently_drawn(i)
+                        ))
+                        : perfect_cache[i]
+                perfect_cache[i] = path
+                ctx.fill(path);
+            }     
     }
     //Draw Calligraphy Strokes one by one starting from the given point
     for(var i = startStroke; i < strokes.length; i++){
@@ -311,7 +354,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
     pleaseRedrawEverything = false;
 	fullRedraw = false;
-    nextPoint = 0;//since we stopped drawing in redraw, next draw is definitely a new line(also a hack for undo setting it to 0 fixes stuff)
+    nextPoint = strokes.length == 0 ? 0 : nextPoint;//reset nest point if out of lines
     nextStroke = strokes.length == 0 ? 0 : nextStroke;//reset for undo as well
         if(fullClear){// start again from 0.
             nextLine = 0;
@@ -332,6 +375,7 @@ function pointerDownLine(e) {
         arrays_of_points.push([[
 			e.offsetX,
 			e.offsetY,
+            e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]]);
         start_drawing();
     }
@@ -344,6 +388,7 @@ function pointerMoveLine(e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
+            e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]);
     }
 }
@@ -356,10 +401,12 @@ function pointerUpLine(e) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
+            e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]);
         line_type_history.push('L');//Add new Simple line marker to shared history
     } 
 	stop_drawing();
+    if(perfectFreehand) ts_redraw();
 }
 
 document.addEventListener('keyup', function(e) {
@@ -477,5 +524,54 @@ function pointerUpCaligraphy(e) {
 //window.addEventListener("keydown",keydown,true);
 //
 //update();
+
+// ----------------------------------------- Perfect Freehand -----------------------------------------
+
+function med(A, B) {
+  return [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+}
+
+// Trim SVG path data so number are each two decimal points. This
+// improves SVG exports, and prevents rendering errors on points
+// with long decimals.
+const TO_FIXED_PRECISION = /(\s?[A-Z]?,?-?[0-9]*\.[0-9]{0,2})(([0-9]|e|-)*)/g;
+
+function getSvgPathFromStroke(points){
+  if (!points.length) {
+    return "";
+  }
+
+  const max = points.length - 1;
+
+  return points
+    .reduce(
+      (acc, point, i, arr) => {
+        if (i === max) {
+          acc.push(point, med(point, arr[0]), "L", arr[0], "Z");
+        } else {
+          acc.push(point, med(point, arr[i + 1]));
+        }
+        return acc;
+      },
+      ["M", points[0], "Q"],
+    )
+    .join(" ")
+    .replace(TO_FIXED_PRECISION, "$1");
+}
+
+function getFreeDrawSvgPath(inputPoints, complete) {
+  // Consider changing the options for simulated pressure vs real pressure
+  const options = {
+    simulatePressure: inputPoints[0][2] > 1,
+    size: line_width,
+    thinning: 0.6,
+    smoothing: 0.5,
+    streamline: 0.5,
+    easing: (t) => Math.sin((t * Math.PI) / 2), // https://easings.net/#easeOutSine
+    last: complete, // LastCommittedPoint is added on pointerup
+  };
+
+  return getSvgPathFromStroke(getStroke(inputPoints, options));
+}
 
 </script></body></html>
