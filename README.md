@@ -1,5 +1,5 @@
 # Anki-StylusDraw
-Improvements upon the Anki-TouchScreen addon to add pressure pen and calligrapher functionality.
+Improvements upon the Anki-TouchScreen addon to add pressure pen, perfect freehand and calligrapher functionality.
 
 Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
 
@@ -8,15 +8,16 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
   </a><br>
 
 # Changes
+* Added Perfect Freehand mode(https://github.com/steveruizok/perfect-freehand)
 * Added Calligrapher mode(https://github.com/atomanyih/Calligrapher)
 * Added pressure sensitivity
 * Increased drawing speed
-* Added <kbd>,</kbd> for showing/hiding, <kbd>.</kbd> for clearing and <kbd>alt + c</kbd> for calligrapher mode
+* Added <kbd>,</kbd> for showing/hiding, <kbd>.</kbd> for clearing, <kbd>alt + c</kbd> for calligrapher mode and <kbd>alt + x</kbd> for perfect freehand mode
 * Added standalone website to test drawing
 * Work around a Windows Pen bug which makes 2 primary pointers appear when drawing in Anki
 
-## My hardware
-I use a Huion H1161 with Windows Pen enabled and it works perfectly.
+## Hardware
+Tested to work with a Huion H1161, Windows Pen enabled.
 ### For best exprience dont use software rendering and turn on use pen as a mouse
 <table><tr>
 <td> <img alt="Dont use software rendering in Anki settings" src="docs/dontUseSoftwareRendering.png"> </td>
