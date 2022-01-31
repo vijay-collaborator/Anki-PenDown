@@ -297,6 +297,9 @@ async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, e
 function is_last_path_and_currently_drawn(i){
     return (isPointerDown && arrays_of_points.length-1 == i)//the path is complete unless its the last of the array and the pointer is still down
 }
+function all_drawing_finished(i){
+    return (!isPointerDown && arrays_of_points.length-1 == i)//the path is complete unless its the last of the array and the pointer is still down
+}
 var pleaseRedrawEverything = false;
 var fullClear = false;
 async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
@@ -333,7 +336,6 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
             else {needPerfectDraw = true;}
             
         }
-        startPoint = 0;
         if(needPerfectDraw) {
                 var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i) ? new Path2D(
                     getFreeDrawSvgPath(
@@ -343,7 +345,12 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
                         : perfect_cache[i]
                 perfect_cache[i] = path
                 ctx.fill(path);
-            }     
+            }
+        if(all_drawing_finished(i)){
+                nextLine++;
+                nextPoint = 0;
+            }
+        startPoint = 0;
     }
     //Draw Calligraphy Strokes one by one starting from the given point
     for(var i = startStroke; i < strokes.length; i++){
@@ -377,6 +384,7 @@ function pointerDownLine(e) {
 			e.offsetY,
             e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]]);
+        line_type_history.push('L');//Add new Simple line marker to shared history
         start_drawing();
     }
 }
@@ -403,7 +411,6 @@ function pointerUpLine(e) {
 			e.offsetY,
             e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (0.8 + e.pressure * line_width * 2) : line_width]);
-        line_type_history.push('L');//Add new Simple line marker to shared history
     } 
 	stop_drawing();
     if(perfectFreehand) ts_redraw();
@@ -427,6 +434,11 @@ document.addEventListener('keyup', function(e) {
     if ((e.key === "c" || e.key === "C") && e.altKey) {
         e.preventDefault();
         switch_drawing_mode();
+    }
+     // alt + X or x
+     if ((e.key === "x" || e.key === "X") && e.altKey) {
+        e.preventDefault();
+        switch_perfect_freehand();
     }
 })
 
@@ -480,6 +492,7 @@ function drawCurrentPath() {
 function pointerDownCaligraphy(e) {
     if (!e.isPrimary || !calligraphy) { return; }
     event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
+    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     start_drawing();
 };
 
@@ -506,7 +519,6 @@ function pointerUpCaligraphy(e) {
     
     strokes.push(new Stroke(curves));
     
-    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
     secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
 };

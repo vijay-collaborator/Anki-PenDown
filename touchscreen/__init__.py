@@ -467,6 +467,10 @@ function is_last_path_and_currently_drawn(i){
     return (isPointerDown && arrays_of_points.length-1 == i)//the path is complete unless its the last of the array and the pointer is still down
 }
 
+function all_drawing_finished(i){
+    return (!isPointerDown && arrays_of_points.length-1 == i)//the path is complete unless its the last of the array and the pointer is still down
+}
+
 async function draw_path_at_some_point_async(startX, startY, midX, midY, endX, endY, lineWidth) {
 		ctx.beginPath();
 		ctx.moveTo((startX + (midX - startX) / 2), (startY + (midY - startY)/ 2));//midpoint calculation for x and y
@@ -509,7 +513,6 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
             }
             else {needPerfectDraw = true;}
         }
-		startPoint = 0;
         if(needPerfectDraw) {
                 var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i) ? new Path2D(
                     getFreeDrawSvgPath(
@@ -520,6 +523,11 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
                 perfect_cache[i] = path
                 ctx.fill(path);
         }     
+        if(all_drawing_finished(i)){
+                nextLine++;
+                nextPoint = 0;
+            }
+        startPoint = 0;
     }
     //Draw Calligraphy Strokes one by one starting from the given point
     for(var i = startStroke; i < strokes.length; i++){
@@ -553,6 +561,7 @@ function pointerDownLine(e) {
 			e.offsetY,
             e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (1.0 + e.pressure * line_width * 2) : line_width]]);
+        line_type_history.push('L');//Add new Simple line marker to shared history
         start_drawing();
     }
 }
@@ -579,7 +588,6 @@ function pointerUpLine(e) {
 			e.offsetY,
             e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (1.0 + e.pressure * line_width * 2) : line_width]);
-        line_type_history.push('L');//Add new Simple line marker to shared history
     } 
 	stop_drawing();
     if(perfectFreehand) ts_redraw();
@@ -603,6 +611,11 @@ document.addEventListener('keyup', function(e) {
     if ((e.key === "c" || e.key === "C") && e.altKey) {
         e.preventDefault();
         switch_drawing_mode();
+    }
+        // alt + X or x
+        if ((e.key === "x" || e.key === "X") && e.altKey) {
+        e.preventDefault();
+        switch_perfect_freehand();
     }
 })
 // ----------------------------------------- Perfect Freehand -----------------------------------------
@@ -703,6 +716,7 @@ function drawCurrentPath() {
 function pointerDownCaligraphy(e) {
     if (!e.isPrimary || !calligraphy) { return; }
     event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
+    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     start_drawing();
 };
 
@@ -728,7 +742,6 @@ function pointerUpCaligraphy(e) {
     
     strokes.push(new Stroke(curves));
     
-    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
     secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
 };
@@ -1505,7 +1518,7 @@ function chordPrint(chord) {
     for(var i in chord) {
         s+= chord[i] + " | ";
     }
-    console.log(s);
+    //console.log(s);
 }
 
 /* ------------------------------        strokeDrawing.js        ------------------------------*/
@@ -1634,8 +1647,8 @@ function getCornerAttributes(inSeg, outSeg) {
         "point" : inSeg.getEnd()
     };
     attrs.betweenAngle = getInnerAngle(attrs.inAngle,attrs.outAngle);
-    console.log(attrs.inAngle,attrs.outAngle);
-    console.log(attrs.betweenAngle);
+    //console.log(attrs.inAngle,attrs.outAngle);
+    //console.log(attrs.betweenAngle);
     return attrs;
 }
 
@@ -1663,7 +1676,7 @@ function innerAngleHelper(angle) { //if it's negative then it is the other angle
 function checkRule(obj,rule) {
     if(rule[0] == "Result")
         return rule[1];
-    console.log(rule[0]);
+    //console.log(rule[0]);
     if(inRange(obj[rule[0]],rule[1]))
         return checkRule(obj,rule[2]);
     return null;
@@ -1671,7 +1684,7 @@ function checkRule(obj,rule) {
 
 function checkRules(obj,ruleset) { //checks all rules, no shortcircuiting currently
     var results = [];
-    console.log("Checking rules");
+    //console.log("Checking rules");
     for(var i = 0; i<ruleset.length-1; i++) {
         var result = checkRule(obj,ruleset[i]);
         if(result != null)
@@ -1681,18 +1694,18 @@ function checkRules(obj,ruleset) { //checks all rules, no shortcircuiting curren
         throw "Overlapping conditions";
     if(results.length == 1)
         return results[0];
-    console.log("no result");
+    //console.log("no result");
     return ruleset[ruleset.length-1]; //default
 }
 
 function checkRules2(obj,ruleset) {
     var results = [];
-    console.log("Checking rules");
+    //console.log("Checking rules");
     for(var i = 0; i<ruleset.length; i++) {
         if(ruleset[i].check(obj))
             return ruleset[i].result;
     }
-    console.log("No Result");
+    //console.log("No Result");
     return null
 }
 
@@ -1708,8 +1721,8 @@ Rule.prototype.check = function(attrs) {
 function checkCond(attrs,cond) {
     var op = OPERATIONS[cond[1]],
         val = attrs[cond[0]];
-    console.log("Op:",cond[1]);
-    console.log(cond[0],val);
+    //console.log("Op:",cond[1]);
+    //console.log(cond[0],val);
     return op(attrs,val,cond.slice(2));
 }
 
@@ -1861,7 +1874,7 @@ function getSegAngleEnd(curve) {
  */
 function matrixPrint(matrix) {
     for (var i = 0; i < matrix.length; i++) {
-        console.log(matrix[i]);
+        //console.log(matrix[i]);
     }
 }
 
@@ -2127,11 +2140,11 @@ function point(vector,dir) {
 function rotate(v,rad) {
     var ang = getAngle(v);
     if(v[0] == 0 && v[1] == -8) {
-        console.log(v);
-        console.log("!");
-        console.log(ang);
-        console.log(rad);
-        console.log(point(v,rad+ang));
+        //console.log(v);
+        //console.log("!");
+        //console.log(ang);
+        //console.log(rad);
+        //console.log(point(v,rad+ang));
     }
     return point(v,rad+ang);
 }
