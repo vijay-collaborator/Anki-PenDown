@@ -2793,7 +2793,7 @@ def ts_off():
 
     global ts_state_on
     ts_state_on = False
-    ts_menu_dots.setChecked(False)
+    ts_menu_switch.setChecked(False)
     return True
 
 
