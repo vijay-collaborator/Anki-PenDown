@@ -45,6 +45,11 @@ ts_line_width = 4
 ts_opacity = 0.7
 ts_default_review_html = mw.reviewer.revHtml
 
+ts_default_ConvertDotStrokes = "true"
+
+ts_default_VISIBILITY = "true"
+ts_default_PerfFreehand = "false"
+ts_default_Calligraphy = "false"
 
 @slot()
 def ts_change_color():
@@ -73,7 +78,7 @@ def ts_change_width():
 @slot()
 def ts_change_opacity():
     global ts_opacity
-    value, accepted = QInputDialog.getDouble(mw, "Touch Screen", "Enter the opacity (100 = transparent, 0 = opaque):", 100 * ts_opacity, 0, 100, 2)
+    value, accepted = QInputDialog.getDouble(mw, "Touch Screen", "Enter the opacity (0 = transparent, 100 = opaque):", 100 * ts_opacity, 0, 100, 2)
     if accepted:
         ts_opacity = value / 100
         execute_js("canvas.style.opacity = " + str(ts_opacity))
@@ -102,6 +107,7 @@ def ts_save():
     mw.pm.profile['ts_color'] = ts_color
     mw.pm.profile['ts_line_width'] = ts_line_width
     mw.pm.profile['ts_opacity'] = ts_opacity
+    mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_default_ConvertDotStrokes
 
 
 def ts_load():
@@ -109,22 +115,29 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes
 
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
         ts_line_width = mw.pm.profile['ts_line_width']
         ts_opacity = mw.pm.profile['ts_opacity']
+        ts_default_ConvertDotStrokes = mw.pm.profile['ts_default_ConvertDotStrokes']
     except KeyError:
         ts_state_on = False
         ts_color = "#f0f"
         ts_line_width = 4
         ts_opacity = 0.8
+        ts_default_ConvertDotStrokes = "true"
     ts_profile_loaded = True
 
     if ts_state_on:
         ts_on()
+
+    if ts_default_ConvertDotStrokes == 'true':
+        ts_dotconvert_on()
+    else:
+        ts_dotconvert_off()
 
     assure_plugged_in()
 
@@ -175,78 +188,92 @@ ts_blackboard = u"""
     <canvas id="main_canvas" width="100" height="100"></canvas>
 </div>
 <div id="pencil_button_bar">
-    <input type="button" class="active" onclick="active=!active;switch_visibility();" id="ts_visibility_button" value="\u270D" title="Toggle visiblity">
-    <input type="button" class="active" onclick="switch_perfect_freehand()" id="ts_perfect_freehand_button" value="Perf" title="Perfect Freehand">
-	<input type="button" class="" onclick="switch_drawing_mode();" value="漢字" id="ts_kanji_button" title="Toggle calligrapher">
-    <input type="button" onclick="ts_undo();" value="\u21B6" title="Undo the last stroke" id="ts_undo_button">
-    <input type="button" class="active" onclick="clear_canvas();" value="\u2715" title="Clean whiteboard">
+      <!-- SVG icons from https://github.com/tabler/tabler-icons/ -->
+      <button id="ts_visibility_button" class="active" title="Toggle visiblity"
+              onclick="active=!active;switch_visibility();" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path></svg>
+      </button>
+
+      <button id="ts_perfect_freehand_button" title="Perfect Freehand"
+              onclick="switch_perfect_freehand()" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 20l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4z"></path><path d="M13.5 6.5l4 4"></path><path d="M16 18h4m-2 -2v4"></path></svg>
+      </button>
+
+      <button id="ts_kanji_button" title="Toggle calligrapher"
+              onclick="switch_drawing_mode();" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"></path><path d="M21 3a16 16 0 0 0 -12.8 10.2"></path><path d="M21 3a16 16 0 0 1 -10.2 12.8"></path><path d="M10.6 9a9 9 0 0 1 4.4 4.4"></path></svg>
+      </button>
+      
+      <button id="ts_undo_button" title="Undo the last stroke"
+              onclick="ts_undo();" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
+      </button>
+      
+      <button class="active" title="Clean whiteboard"
+              onclick="clear_canvas();" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path><path d="M10 12l4 4m0 -4l-4 4"></path></svg>
+      </button>
 </div>
 <style>
+:root {
+  --button-bar-pt: 2px;
+  --button-bar-pr: 2px;
+  --button-bar-pb: unset;
+  --button-bar-pl: unset;
+  --button-bar-orientation: column;
+}
 body {
   overflow-x: hidden; /* Hide horizontal scrollbar */
 }
-#canvas_wrapper, #main_canvas, #secondary_canvas
-{
-    position:absolute;
-    top: 0px;
-    left: 0px;
-    z-index: 999;
-	touch-action: none;
+#canvas_wrapper, #main_canvas, #secondary_canvas {
+  position:absolute;
+  top: 0px;
+  left: 0px;
+  z-index: 999;
+  touch-action: none;
 }
-#main_canvas, #secondary_canvas{
-    opacity: """ + str(ts_opacity) + """;
+#main_canvas, #secondary_canvas {
+  opacity: """ + str(ts_opacity) + """;
 }
-.night_mode #pencil_button_bar input[type=button].active
-{
-    -webkit-filter: grayscale(0);
-    filter: none;
-    color: #fff!important;
+#pencil_button_bar {
+  position: absolute;
+  display: flex;
+  flex-direction: var(--button-bar-orientation);
+  opacity: .5;
+  top: var(--button-bar-pt);
+  right: var(--button-bar-pr);
+  bottom: var(--button-bar-pb);
+  left: var(--button-bar-pl);
+  z-index: 8000;
+  transition: .5s;
+} #pencil_button_bar:hover { 
+  opacity: 1;
+} #pencil_button_bar > button {
+  margin: 2px;
+} #pencil_button_bar > button > svg {
+  width: 2em;
+} #pencil_button_bar > button:hover > svg {
+  filter: drop-shadow(0 0 4px #000);
+} #pencil_button_bar > button.active > svg > path {
+  stroke: #000;
+} .night_mode #pencil_button_bar > button.active > svg > path {
+  stroke: #eee;
+} #pencil_button_bar > button > svg > path {
+  stroke: #888;
+} .night_mode #pencil_button_bar > button > svg > path {
+  /*stroke: #888;*/
 }
-#pencil_button_bar input[type=button].active
-{
-    -webkit-filter: grayscale(0);
-    filter: none;
-    color: black!important;
+#canvas_wrapper {
+  height: 100px
 }
-#pencil_button_bar
-{
-    position: fixed;
-    top: 1px;
-    right: 1px;
-    z-index: 1000;
-    font-family: "Arial Unicode MS", unifont, "Everson Mono", tahoma, arial;
-}
-#pencil_button_bar input[type=button]
-{
-    filter: gray;
-    -webkit-filter: grayscale(1);
-    filter: grayscale(1);
-    border: 1px solid black;
-    margin: 0 1px;
-    float: left;
-    width: 90px!important;
-    font-size: 40px;
-    line-height: 40px;
-    height: 50px;
-    border-radius: 8px;
-    background-color: rgba(250,250,250,0.5)!important;
-    color: #ccc!important;
-}
-.night_mode #pencil_button_bar input[type=button]{
-    background-color: rgba(10,10,10,0.5)!important;
-    border-color: #ccc;
-    color: #444!important;
-    text-shadow: 0 0 1px rgba(5, 5, 5, 0.9);
-}
-#canvas_wrapper
-{
-    height: 100px
+.nopointer {
+  cursor: none !important;
 }
 </style>
 
 <script>
-var visible = true;
-var perfectFreehand = true;
+var visible = """ + ts_default_VISIBILITY + """;
+var perfectFreehand = """ + ts_default_PerfFreehand +""";
 var canvas = document.getElementById('main_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
 var ts_undo_button = document.getElementById('ts_undo_button');
@@ -257,8 +284,9 @@ var ts_visibility_button = document.getElementById('ts_visibility_button');
 var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ts_perfect_freehand_button = document.getElementById('ts_perfect_freehand_button');
 var arrays_of_points = [ ];
+var convertDotStrokes = """ + ts_default_ConvertDotStrokes + """;
 var color = '#fff';
-var calligraphy = false;
+var calligraphy = """ + ts_default_Calligraphy + """;
 var line_type_history = [ ];
 var perfect_cache = [ ];
 var line_width = 4;
@@ -274,6 +302,8 @@ function switch_perfect_freehand()
     if(perfectFreehand)
     {
         ts_perfect_freehand_button.className = 'active';
+        ts_kanji_button.className = '';
+        calligraphy = false;
     }
     else{
         ts_perfect_freehand_button.className = '';
@@ -314,6 +344,8 @@ function switch_drawing_mode()
     if(calligraphy)
     {
         ts_kanji_button.className = 'active';
+        ts_perfect_freehand_button.className = '';
+        perfectFreehand = false;
     }
     else{
         ts_kanji_button.className = '';
@@ -551,6 +583,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 var drawingWithPressurePenOnly = false; // hack for drawing with 2 main pointers when using a presure sensitive pen
 
 function pointerDownLine(e) {
+    wrapper.classList.add('nopointer');
 	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] == 'p') { drawingWithPressurePenOnly = true }
 	else if ( drawingWithPressurePenOnly) { return; }
@@ -579,10 +612,11 @@ function pointerMoveLine(e) {
 }
 
 function pointerUpLine(e) {
+    wrapper.classList.remove('nopointer');
     /* Needed for the last bit of the drawing. */
 	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
-     if (isPointerDown && active) {
+    if (isPointerDown && active) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
@@ -714,6 +748,7 @@ function drawCurrentPath() {
 }
 
 function pointerDownCaligraphy(e) {
+    wrapper.classList.add('nopointer');
     if (!e.isPrimary || !calligraphy) { return; }
     event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
     line_type_history.push('C');//Add new Caligragraphy line marker to shared history
@@ -734,6 +769,7 @@ function pointerMoveCaligraphy(e) {
 };
 
 function pointerUpCaligraphy(e) {
+    wrapper.classList.remove('nopointer');
     stop_drawing();
     if (!e.isPrimary || !calligraphy || !currentPath.length) { return; }
     points = currentPath;
@@ -2381,7 +2417,7 @@ var FIXED_PI = PI + 0.0001;
       draw a dot if the line is both very short and complete. If we draw a dot,
       we can just return those points.
     */
-    if (points.length === 1) {
+    if (convertDotStrokes == true && points.length === 1) {
         if (!(taperStart || taperEnd) || isComplete) {
             var start_1 = prj(firstPoint, uni(per(sub(firstPoint, lastPoint))), -(firstRadius || radius));
             var dotPts = [];
@@ -2723,6 +2759,7 @@ def custom(*args, **kwargs):
         ts_blackboard + 
         "<script>color = '" + ts_color + "'</script>" +
         "<script>line_width = '" + str(ts_line_width) + "'</script>"
+        "<script>convertDotStrokes = " + str(ts_default_ConvertDotStrokes) + "</script>"
     )
     return output
 
@@ -2730,13 +2767,17 @@ def custom(*args, **kwargs):
 mw.reviewer.revHtml = custom
 
 
+def checkProfile():
+    if not ts_profile_loaded:
+        showWarning(TS_ERROR_NO_PROFILE)
+        return False
+
+
 def ts_on():
     """
     Turn on
     """
-    if not ts_profile_loaded:
-        showWarning(TS_ERROR_NO_PROFILE)
-        return False
+    checkProfile()
 
     global ts_state_on
     ts_state_on = True
@@ -2748,14 +2789,35 @@ def ts_off():
     """
     Turn off
     """
-    if not ts_profile_loaded:
-        showWarning(TS_ERROR_NO_PROFILE)
-        return False
+    checkProfile()
 
     global ts_state_on
     ts_state_on = False
-    ts_menu_switch.setChecked(False)
+    ts_menu_dots.setChecked(False)
     return True
+
+
+def ts_dotconvert_on():
+    """
+    Turn on dot convert
+    """
+    checkProfile()
+
+    global ts_default_ConvertDotStrokes
+    ts_default_ConvertDotStrokes = "true"
+    ts_menu_dots.setChecked(True)
+
+
+def ts_dotconvert_off():
+    """
+    Turn off dot convert
+    """
+    checkProfile()
+
+    global ts_default_ConvertDotStrokes
+    ts_default_ConvertDotStrokes = "false"
+    ts_menu_dots.setChecked(False)
+
 
 
 @slot()
@@ -2769,6 +2831,7 @@ def ts_switch():
     else:
         ts_on()
 
+
     # Reload current screen.
 
     if mw.state == "review":
@@ -2778,6 +2841,21 @@ def ts_switch():
         mw.deckBrowser.refresh()
     if mw.state == "overview":
         mw.overview.refresh()
+
+
+@slot()
+def ts_dots():
+    """
+    Switch dot conversion.
+    """
+
+    if ts_default_ConvertDotStrokes == 'true':
+        ts_dotconvert_off()
+    else:
+        ts_dotconvert_on()
+
+    execute_js("convertDotStrokes = " + ts_default_ConvertDotStrokes + "; update_pen_settings()")
+    ts_refresh()
 
 
 def ts_refresh():
@@ -2790,13 +2868,14 @@ def ts_refresh():
         ts_off()
 
 
+
 def ts_setup_menu():
     """
     Initialize menu. If there is an entity "View" in top level menu
     (shared with other plugins, like "Zoom" of R. Sieker) options of
     the addon will be placed there. In other case it creates that menu.
     """
-    global ts_menu_switch
+    global ts_menu_switch, ts_menu_dots
 
     try:
         mw.addon_view_menu
@@ -2810,6 +2889,7 @@ def ts_setup_menu():
     mw.addon_view_menu.addMenu(mw.ts_menu)
 
     ts_menu_switch = QAction(_('&Enable touchscreen mode'), mw, checkable=True)
+    ts_menu_dots = QAction(_('Convert dot strokes on PF mode'), mw, checkable=True)
     ts_menu_color = QAction(_('Set &pen color'), mw)
     ts_menu_width = QAction(_('Set pen &width'), mw)
     ts_menu_opacity = QAction(_('Set pen &opacity'), mw)
@@ -2819,6 +2899,7 @@ def ts_setup_menu():
     ts_menu_switch.setShortcut(ts_toggle_seq)
 
     mw.ts_menu.addAction(ts_menu_switch)
+    mw.ts_menu.addAction(ts_menu_dots)
     mw.ts_menu.addAction(ts_menu_color)
     mw.ts_menu.addAction(ts_menu_width)
     mw.ts_menu.addAction(ts_menu_opacity)
@@ -2826,6 +2907,7 @@ def ts_setup_menu():
     mw.ts_menu.addAction(ts_menu_about)
 
     ts_menu_switch.triggered.connect(ts_switch)
+    ts_menu_dots.triggered.connect(ts_dots)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
