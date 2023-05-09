@@ -186,33 +186,34 @@ ts_blackboard = u"""
     -->
     <canvas id="secondary_canvas" width="100" height="100" ></canvas>
     <canvas id="main_canvas" width="100" height="100"></canvas>
-</div>
-<div id="pencil_button_bar">
-      <!-- SVG icons from https://github.com/tabler/tabler-icons/ -->
-      <button id="ts_visibility_button" class="active" title="Toggle visiblity"
+
+    <div id="pencil_button_bar">
+        <!-- SVG icons from https://github.com/tabler/tabler-icons/ -->
+        <button id="ts_visibility_button" class="active" title="Toggle visiblity"
               onclick="active=!active;switch_visibility();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path></svg>
-      </button>
+        </button>
 
-      <button id="ts_perfect_freehand_button" title="Perfect Freehand"
+        <button id="ts_perfect_freehand_button" title="Perfect Freehand"
               onclick="switch_perfect_freehand()" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 20l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4z"></path><path d="M13.5 6.5l4 4"></path><path d="M16 18h4m-2 -2v4"></path></svg>
-      </button>
+        </button>
 
-      <button id="ts_kanji_button" title="Toggle calligrapher"
+        <button id="ts_kanji_button" title="Toggle calligrapher"
               onclick="switch_drawing_mode();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"></path><path d="M21 3a16 16 0 0 0 -12.8 10.2"></path><path d="M21 3a16 16 0 0 1 -10.2 12.8"></path><path d="M10.6 9a9 9 0 0 1 4.4 4.4"></path></svg>
-      </button>
-      
-      <button id="ts_undo_button" title="Undo the last stroke"
+        </button>
+
+        <button id="ts_undo_button" title="Undo the last stroke"
               onclick="ts_undo();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
-      </button>
-      
-      <button class="active" title="Clean whiteboard"
+        </button>
+
+        <button class="active" title="Clean whiteboard"
               onclick="clear_canvas();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path><path d="M10 12l4 4m0 -4l-4 4"></path></svg>
-      </button>
+        </button>
+    </div>
 </div>
 <style>
 :root {
@@ -268,6 +269,9 @@ body {
 }
 .nopointer {
   cursor: none !important;
+} .nopointer #pencil_button_bar,
+.touch_disable > button:not(:first-child) {
+  display: none;
 }
 </style>
 
@@ -276,6 +280,7 @@ var visible = """ + ts_default_VISIBILITY + """;
 var perfectFreehand = """ + ts_default_PerfFreehand +""";
 var canvas = document.getElementById('main_canvas');
 var wrapper = document.getElementById('canvas_wrapper');
+var optionBar = document.getElementById('pencil_button_bar');
 var ts_undo_button = document.getElementById('ts_undo_button');
 var ctx = canvas.getContext('2d');
 var secondary_canvas = document.getElementById('secondary_canvas');
@@ -319,12 +324,14 @@ function switch_visibility()
         canvas.style.display='none';
         secondary_canvas.style.display=canvas.style.display;
         ts_visibility_button.className = '';
+        optionBar.className = 'touch_disable';
     }
     else
     {
         canvas.style.display='block';
         secondary_canvas.style.display=canvas.style.display;
         ts_visibility_button.className = 'active';
+        optionBar.className = '';
     }
     visible = !visible;
 }
