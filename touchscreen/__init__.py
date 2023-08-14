@@ -237,11 +237,11 @@ body {
   opacity: """ + str(ts_opacity) + """;
 }
 #pencil_button_bar {
-  position: absolute;
+   position: fixed;
   display: flex;
   flex-direction: var(--button-bar-orientation);
   opacity: .5;
-  top: var(--button-bar-pt);
+  top: 1px;
   right: var(--button-bar-pr);
   bottom: var(--button-bar-pb);
   left: var(--button-bar-pl);
