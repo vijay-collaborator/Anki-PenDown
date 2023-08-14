@@ -8,6 +8,7 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
   </a><br>
 
 # Changes
+* Updated UI, add option to convert dots, hide cursor and ui while drawing. Thanks rin-w
 * Added Perfect Freehand mode(https://github.com/steveruizok/perfect-freehand)
 * Added Calligrapher mode(https://github.com/atomanyih/Calligrapher)
 * Added pressure sensitivity
