@@ -1,5 +1,5 @@
 # Anki-StylusDraw
-Improvements upon the Anki-TouchScreen addon to add pressure pen, perfect freehand and calligrapher functionality.
+Initially based on the Anki-TouchScreen addon, updated ui and added pressure pen/stylus capabilities, perfect freehand(line smoothing) and calligrapher functionality.
 
 Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
 
