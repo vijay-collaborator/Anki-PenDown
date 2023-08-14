@@ -4,7 +4,7 @@ Improvements upon the Anki-TouchScreen addon to add pressure pen, perfect freeha
 Website to test the drawing functionality: https://rytisgit.github.io/Anki-StylusDraw/
 
  <a href="https://rytisgit.github.io/Anki-StylusDraw/">
-    <img alt="Draw Demonstration" src="docs/kanji.gif" width="75%">
+    <img alt="Draw Demonstration" src="docs/kanjiNewUI.gif" width="75%">
   </a><br>
 
 # Changes
