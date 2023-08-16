@@ -155,7 +155,7 @@ def assure_plugged_in():
         mw.reviewer.revHtml = custom
 
 def resize_js():
-    execute_js("setTimeout(resize, 101);");
+    execute_js("if (typeof resize === 'function') { setTimeout(resize, 101); }");
     
 def clear_blackboard():
     assure_plugged_in()
@@ -163,7 +163,7 @@ def clear_blackboard():
     if ts_state_on:
         execute_js("clear_canvas();");
         # is qFade the reason for having to wait?
-        execute_js("setTimeout(resize, 101);");
+        execute_js("if (typeof resize === 'function') { setTimeout(resize, 101); }");
 
 def ts_onload():
     """
