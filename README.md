@@ -20,9 +20,9 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
 ## Hardware
 Tested to work with a Huion H1161, Windows Pen enabled.
 ### For best exprience dont use software rendering and turn on use pen as a mouse
-<table><tr>
-<td> <img alt="Switch away from Software in Qt5" src="docs/dontUseSoftwareRendering.png"> </td>
-<td> <img alt="Switch away from Software in Qt6" src="docs/qt6fast.png"> </td>
+#### Run `echo auto > %APPDATA%\Anki2\gldriver6` in cmd for Qt6
+<table> <img alt="Switch away from Software in Qt6" src="docs/qt6fast.png"><tr>
+<td> Qt5 rendering change <img alt="Switch away from Software in Qt5" src="docs/dontUseSoftwareRendering.png"> </td>
 <td> <img alt="Check use pen as mouse in Windows pen settings" src="docs/usePenAsMouse.png"> </td>
 </tr></table>
 
