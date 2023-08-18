@@ -10,7 +10,7 @@ It adds a "view" menu entity (if it doesn't exist) with options like:
     modifying some of the colors
 
 
-If you want to contribute visit GitHub page: https://github.com/krassowski/Anki-TouchScreen
+If you want to contribute visit GitHub page: https://github.com/Rytisgit/Anki-StylusDraw
 Also, feel free to send me bug reports or feature requests.
 
 Copyright: Michal Krassowski <krassowski.michal@gmail.com>
@@ -18,8 +18,8 @@ License: GNU GPL, version 3 or later; http://www.gnu.org/copyleft/gpl.html,
 Important parts of Javascript code inspired by http://creativejs.com/tutorials/painting-with-pixels/index.html
 """
 
-__addon_name__ = "TouchScreen"
-__version__ = "0.4.1"
+__addon_name__ = "AnkiDraw"
+__version__ = "1.0"
 
 from aqt import mw, dialogs
 from aqt.utils import showWarning
@@ -189,27 +189,27 @@ ts_blackboard = u"""
 
     <div id="pencil_button_bar">
         <!-- SVG icons from https://github.com/tabler/tabler-icons/ -->
-        <button id="ts_visibility_button" class="active" title="Toggle visiblity"
+        <button id="ts_visibility_button" class="active" title="Toggle visiblity (, comma)"
               onclick="active=!active;switch_visibility();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path></svg>
         </button>
 
-        <button id="ts_perfect_freehand_button" title="Perfect Freehand"
+        <button id="ts_perfect_freehand_button" title="Perfect Freehand (Alt + x)"
               onclick="switch_perfect_freehand()" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 20l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4z"></path><path d="M13.5 6.5l4 4"></path><path d="M16 18h4m-2 -2v4"></path></svg>
         </button>
 
-        <button id="ts_kanji_button" title="Toggle calligrapher"
+        <button id="ts_kanji_button" title="Toggle calligrapher (Alt + c)"
               onclick="switch_drawing_mode();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"></path><path d="M21 3a16 16 0 0 0 -12.8 10.2"></path><path d="M21 3a16 16 0 0 1 -10.2 12.8"></path><path d="M10.6 9a9 9 0 0 1 4.4 4.4"></path></svg>
         </button>
 
-        <button id="ts_undo_button" title="Undo the last stroke"
+        <button id="ts_undo_button" title="Undo the last stroke (Alt + z)"
               onclick="ts_undo();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
         </button>
 
-        <button class="active" title="Clean whiteboard"
+        <button class="active" title="Clean whiteboard (. dot)"
               onclick="clear_canvas();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path><path d="M10 12l4 4m0 -4l-4 4"></path></svg>
         </button>
@@ -577,7 +577,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
     pleaseRedrawEverything = false;
 	fullRedraw = false;
-    nextPoint = strokes.length == 0 ? 0 : nextPoint;//reset nest point if out of lines
+    nextPoint = strokes.length == 0 ? 0 : nextPoint;//reset next point if out of lines
     nextStroke = strokes.length == 0 ? 0 : nextStroke;//reset for undo as well
         if(fullClear){// start again from 0.
             nextLine = 0;
