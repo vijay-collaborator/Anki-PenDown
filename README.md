@@ -8,6 +8,7 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
   </a><br>
 
 # Changes
+* Fix "resize not defined" error. Thanks huandney.
 * Updated UI, add option to convert dots, hide cursor and ui while drawing. Thanks rin-w
 * Added Perfect Freehand mode(https://github.com/steveruizok/perfect-freehand)
 * Added Calligrapher mode(https://github.com/atomanyih/Calligrapher)
@@ -20,6 +21,7 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
 ## Hardware
 Tested to work with a Huion H1161, Windows Pen enabled.
 ### For best exprience dont use software rendering and turn on use pen as a mouse
+https://docs.ankiweb.net/platform/windows/display-issues.html
 #### Run `echo auto > %APPDATA%\Anki2\gldriver6` in cmd for Qt6
 <table> <img alt="Switch away from Software in Qt6" src="docs/qt6fast.png"><tr>
 <td> Qt5 rendering change <img alt="Switch away from Software in Qt5" src="docs/dontUseSoftwareRendering.png"> </td>
