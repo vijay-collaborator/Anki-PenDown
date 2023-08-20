@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
 # Copyright: Michal Krassowski <krassowski.michal@gmail.com>
+# Copyright: Rytis Petronis <petronisrytis@gmail.com>
 # License: GNU GPL, version 3 or later; http://www.gnu.org/copyleft/gpl.html
 """
-This plugin adds the function of touchscreen, similar that one implemented in AnkiDroid.
+Initially based on the Anki-TouchScreen addon, updated ui and added pressure pen/stylus capabilities, perfect freehand(line smoothing) and calligrapher functionality.
 
-It adds a "view" menu entity (if it doesn't exist) with options like:
 
-    switching touchscreen
+It adds an AnkiDraw menu entity with options like:
+
+    switching AnkiDraw
     modifying some of the colors
+    thickness
+    toolbar settings
 
 
 If you want to contribute visit GitHub page: https://github.com/Rytisgit/Anki-StylusDraw
 Also, feel free to send me bug reports or feature requests.
 
 Copyright: Michal Krassowski <krassowski.michal@gmail.com>
+Copyright: Rytis Petronis <petronisrytis@gmail.com>
 License: GNU GPL, version 3 or later; http://www.gnu.org/copyleft/gpl.html,
 Important parts of Javascript code inspired by http://creativejs.com/tutorials/painting-with-pixels/index.html
 """
@@ -28,7 +33,8 @@ from aqt.utils import showWarning
 from anki.lang import _
 from anki.hooks import addHook
 
-from PyQt5.QtWidgets import QAction, QMenu, QColorDialog, QMessageBox, QInputDialog
+from PyQt5.QtWidgets import QAction, QMenu, QColorDialog, QMessageBox, QInputDialog, QApplication, QMainWindow, QLabel,\
+   QPushButton, QDialog, QVBoxLayout, QComboBox, QHBoxLayout, QSpinBox, QCheckBox
 from PyQt5 import QtCore
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtGui import QColor
@@ -43,6 +49,11 @@ ts_profile_loaded = False
 ts_color = "#272828"
 ts_line_width = 4
 ts_opacity = 0.7
+ts_location = 1
+ts_x_offset = 2
+ts_y_offset = 2
+ts_fixed_position = True
+ts_orient_vertical = True
 ts_default_review_html = mw.reviewer.revHtml
 
 ts_default_ConvertDotStrokes = "true"
@@ -68,7 +79,7 @@ def ts_change_color():
 @slot()
 def ts_change_width():
     global ts_line_width
-    value, accepted = QInputDialog.getDouble(mw, "Touch Screen", "Enter the width:", ts_line_width)
+    value, accepted = QInputDialog.getDouble(mw, "AnkiDraw", "Enter the width:", ts_line_width)
     if accepted:
         ts_line_width = value
         execute_js("line_width = '" + str(ts_line_width) + "'; update_pen_settings()")
@@ -78,11 +89,162 @@ def ts_change_width():
 @slot()
 def ts_change_opacity():
     global ts_opacity
-    value, accepted = QInputDialog.getDouble(mw, "Touch Screen", "Enter the opacity (0 = transparent, 100 = opaque):", 100 * ts_opacity, 0, 100, 2)
+    value, accepted = QInputDialog.getDouble(mw, "AnkiDraw", "Enter the opacity (0 = transparent, 100 = opaque):", 100 * ts_opacity, 0, 100, 2)
     if accepted:
         ts_opacity = value / 100
         execute_js("canvas.style.opacity = " + str(ts_opacity))
         ts_refresh()
+
+
+class CustomDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("AnkiDraw Toolbar")
+
+        self.combo_box = QComboBox()
+        self.combo_box.addItem("Top-Left")
+        self.combo_box.addItem("Top-Right")
+        self.combo_box.addItem("Bottom-Left")
+        self.combo_box.addItem("Bottom-Right")
+
+        combo_label = QLabel("Location:")
+
+        range_label = QLabel("Offset:")
+        start_range_label = QLabel("X Offset:")
+        end_range_label = QLabel("Y Offset:")
+        self.start_spin_box = QSpinBox()
+        self.start_spin_box.setRange(0, 1000)
+        self.end_spin_box = QSpinBox()
+        self.end_spin_box.setRange(0, 1000)
+        range_layout = QVBoxLayout()
+        start_layout = QHBoxLayout()
+        start_layout.addWidget(start_range_label)
+        start_layout.addWidget(self.start_spin_box)
+        end_layout = QHBoxLayout()
+        end_layout.addWidget(end_range_label)
+        end_layout.addWidget(self.end_spin_box)
+        range_layout.addLayout(start_layout)
+        range_layout.addLayout(end_layout)
+
+        checkbox_label = QLabel("Follow when scrolling:")
+        self.checkbox = QCheckBox()
+
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.addWidget(checkbox_label)
+        checkbox_layout.addWidget(self.checkbox)
+
+        checkbox_label2 = QLabel("Orient vertically:")
+        self.checkbox2 = QCheckBox()
+
+        checkbox_layout2 = QHBoxLayout()
+        checkbox_layout2.addWidget(checkbox_label2)
+        checkbox_layout2.addWidget(self.checkbox2)
+
+        accept_button = QPushButton("Accept")
+        cancel_button = QPushButton("Cancel")
+        reset_button = QPushButton("Default")
+
+        accept_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+        reset_button.clicked.connect(self.reset_to_default)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(accept_button)
+        button_layout.addWidget(reset_button)
+        button_layout.addWidget(cancel_button)
+        
+
+        dialog_layout = QVBoxLayout()
+        dialog_layout.addWidget(combo_label)
+        dialog_layout.addWidget(self.combo_box)
+        dialog_layout.addWidget(range_label)
+        dialog_layout.addLayout(range_layout)
+        dialog_layout.addLayout(checkbox_layout)
+        dialog_layout.addLayout(checkbox_layout2)
+        dialog_layout.addLayout(button_layout)
+        self.setLayout(dialog_layout)
+
+    def set_values(self, combo_index, start_value, end_value, checkbox_state, checkbox_state2):
+        self.combo_box.setCurrentIndex(combo_index)
+        self.start_spin_box.setValue(start_value)
+        self.end_spin_box.setValue(end_value)
+        self.checkbox.setChecked(checkbox_state)
+        self.checkbox2.setChecked(checkbox_state2)
+
+    def reset_to_default(self):
+        self.combo_box.setCurrentIndex(1)
+        self.start_spin_box.setValue(2)
+        self.end_spin_box.setValue(2)
+        self.checkbox.setChecked(True)
+        self.checkbox2.setChecked(True)
+
+
+def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_column):
+    position = "fixed" if is_fixed else "absolute"
+    orient = "column" if orient_column else "row"
+    print(location)
+    switch = {
+        0: f"""
+                        --button-bar-pt: {y_offset}px;
+                        --button-bar-pr: unset;
+                        --button-bar-pb: unset;
+                        --button-bar-pl: {x_offset}px;
+                        --button-bar-orientation: {orient};
+                        --button-bar-position: {position};
+                    """,
+        1: f"""
+                        --button-bar-pt: {y_offset}px;
+                        --button-bar-pr: {x_offset}px;
+                        --button-bar-pb: unset;
+                        --button-bar-pl: unset;
+                        --button-bar-orientation: {orient};
+                        --button-bar-position: {position};
+                    """,
+        2: f"""
+                        --button-bar-pt: unset;
+                        --button-bar-pr: unset;
+                        --button-bar-pb: {y_offset}px;
+                        --button-bar-pl: {x_offset}px;
+                        --button-bar-orientation: {orient};
+                        --button-bar-position: {position};
+                    """,
+        3: f"""
+                        --button-bar-pt: unset;
+                        --button-bar-pr: {x_offset}px;
+                        --button-bar-pb: {y_offset}px;
+                        --button-bar-pl: unset;
+                        --button-bar-orientation: {orient};
+                        --button-bar-position: {position};
+                    """,
+    }
+    return switch.get(location, """
+                        --button-bar-pt: 2px;
+                        --button-bar-pr: 2px;
+                        --button-bar-pb: unset;
+                        --button-bar-pl: unset;
+                        --button-bar-orientation: column;
+                        --button-bar-position: fixed;
+                    """)
+
+
+@slot()
+def ts_change_toolbar_settings():
+    global ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
+    
+    dialog = CustomDialog()
+    dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical) 
+    result = dialog.exec_()
+
+    if result == QDialog.Accepted:
+        ts_location = dialog.combo_box.currentIndex()
+        ts_x_offset = dialog.start_spin_box.value()
+        ts_y_offset = dialog.end_spin_box.value()
+        ts_fixed_position = dialog.checkbox.isChecked()
+        ts_orient_vertical = dialog.checkbox2.isChecked()
+        ts_switch()
+        ts_switch()
+
 
 
 @slot()
@@ -108,6 +270,11 @@ def ts_save():
     mw.pm.profile['ts_line_width'] = ts_line_width
     mw.pm.profile['ts_opacity'] = ts_opacity
     mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_default_ConvertDotStrokes
+    mw.pm.profile['ts_location'] = ts_location
+    mw.pm.profile['ts_x_offset'] = ts_x_offset
+    mw.pm.profile['ts_y_offset'] = ts_y_offset
+    mw.pm.profile['ts_fixed_position'] = ts_fixed_position
+    mw.pm.profile['ts_orient_vertical'] = ts_orient_vertical
 
 
 def ts_load():
@@ -115,7 +282,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
 
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
@@ -123,12 +290,22 @@ def ts_load():
         ts_line_width = mw.pm.profile['ts_line_width']
         ts_opacity = mw.pm.profile['ts_opacity']
         ts_default_ConvertDotStrokes = mw.pm.profile['ts_default_ConvertDotStrokes']
+        ts_fixed_position = mw.pm.profile['ts_fixed_position']
+        ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
+        ts_y_offset = mw.pm.profile['ts_y_offset']
+        ts_x_offset = mw.pm.profile['ts_x_offset']
+        ts_location = mw.pm.profile['ts_location']
     except KeyError:
         ts_state_on = False
-        ts_color = "#f0f"
+        ts_color = "#272828"
         ts_line_width = 4
         ts_opacity = 0.8
         ts_default_ConvertDotStrokes = "true"
+        ts_fixed_position = True
+        ts_orient_vertical = True
+        ts_y_offset = 2
+        ts_x_offset = 2
+        ts_location = 1
     ts_profile_loaded = True
 
     if ts_state_on:
@@ -149,7 +326,6 @@ def execute_js(code):
 
 def assure_plugged_in():
     global ts_default_review_html
-
     if not mw.reviewer.revHtml == custom:
         ts_default_review_html = mw.reviewer.revHtml
         mw.reviewer.revHtml = custom
@@ -177,13 +353,11 @@ def ts_onload():
     ts_setup_menu()
 
 
-ts_blackboard = u"""
-<div id="canvas_wrapper" style="touch-action: none">
-    <!--
-    canvas needs touch-action: none so that it doesn't fire bogus
-    pointercancel events. See:
-    https://stackoverflow.com/questions/59010779/pointer-event-issue-pointercancel-with-pressure-input-pen
-    -->
+
+def blackboard():
+    # print(get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical))
+    return u"""
+<div id="canvas_wrapper" ">
     <canvas id="secondary_canvas" width="100" height="100" ></canvas>
     <canvas id="main_canvas" width="100" height="100"></canvas>
 
@@ -217,31 +391,32 @@ ts_blackboard = u"""
 </div>
 <style>
 :root {
-  --button-bar-pt: 2px;
-  --button-bar-pr: 2px;
-  --button-bar-pb: unset;
-  --button-bar-pl: unset;
-  --button-bar-orientation: column;
+  """ + get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical) + """
 }
 body {
   overflow-x: hidden; /* Hide horizontal scrollbar */
 }
+/*
+    canvas needs touch-action: none so that it doesn't fire bogus
+    pointercancel events. See:
+    https://stackoverflow.com/questions/59010779/pointer-event-issue-pointercancel-with-pressure-input-pen
+*/
 #canvas_wrapper, #main_canvas, #secondary_canvas {
   position:absolute;
   top: 0px;
   left: 0px;
-  z-index: 999;
-  touch-action: none;
-}
+   z-index: 999; /*add toggle*/
+  touch-action: none;/*add toggle*/
+  }
 #main_canvas, #secondary_canvas {
   opacity: """ + str(ts_opacity) + """;
 }
 #pencil_button_bar {
-   position: fixed;
+  position: var(--button-bar-position);
   display: flex;
   flex-direction: var(--button-bar-orientation);
   opacity: .5;
-  top: 1px;
+  top: var(--button-bar-pt);
   right: var(--button-bar-pr);
   bottom: var(--button-bar-pb);
   left: var(--button-bar-pl);
@@ -2763,7 +2938,7 @@ def custom(*args, **kwargs):
         return default
     output = (
         default +
-        ts_blackboard + 
+        blackboard() + 
         "<script>color = '" + ts_color + "'</script>" +
         "<script>line_width = '" + str(ts_line_width) + "'</script>"
         "<script>convertDotStrokes = " + str(ts_default_ConvertDotStrokes) + "</script>"
@@ -2830,7 +3005,7 @@ def ts_dotconvert_off():
 @slot()
 def ts_switch():
     """
-    Switch TouchScreen.
+    Switch AnkiDraw.
     """
 
     if ts_state_on:
@@ -2878,46 +3053,47 @@ def ts_refresh():
 
 def ts_setup_menu():
     """
-    Initialize menu. If there is an entity "View" in top level menu
-    (shared with other plugins, like "Zoom" of R. Sieker) options of
-    the addon will be placed there. In other case it creates that menu.
+    Initialize menu. 
     """
     global ts_menu_switch, ts_menu_dots
 
     try:
         mw.addon_view_menu
     except AttributeError:
-        mw.addon_view_menu = QMenu(_(u"&View"), mw)
+        mw.addon_view_menu = QMenu(_(u"&AnkiDraw"), mw)
         mw.form.menubar.insertMenu(mw.form.menuTools.menuAction(),
                                     mw.addon_view_menu)
 
-    mw.ts_menu = QMenu(_('&Touchscreen'), mw)
+    # mw.ts_menu = QMenu(_('&AnkiDraw'), mw)
 
-    mw.addon_view_menu.addMenu(mw.ts_menu)
+    # mw.addon_view_menu.addMenu(mw.ts_menu)
 
-    ts_menu_switch = QAction(_('&Enable touchscreen mode'), mw, checkable=True)
-    ts_menu_dots = QAction(_('Convert dot strokes on PF mode'), mw, checkable=True)
+    ts_menu_switch = QAction(_('&Enable Ankidraw'), mw, checkable=True)
+    ts_menu_dots = QAction(_('Convert &dot strokes on PF mode'), mw, checkable=True)
     ts_menu_color = QAction(_('Set &pen color'), mw)
     ts_menu_width = QAction(_('Set pen &width'), mw)
     ts_menu_opacity = QAction(_('Set pen &opacity'), mw)
+    ts_toolbar_settings = QAction(_('&Toolbar settings'), mw)
     ts_menu_about = QAction(_('&About...'), mw)
 
     ts_toggle_seq = QKeySequence("Ctrl+r")
     ts_menu_switch.setShortcut(ts_toggle_seq)
 
-    mw.ts_menu.addAction(ts_menu_switch)
-    mw.ts_menu.addAction(ts_menu_dots)
-    mw.ts_menu.addAction(ts_menu_color)
-    mw.ts_menu.addAction(ts_menu_width)
-    mw.ts_menu.addAction(ts_menu_opacity)
-    mw.ts_menu.addSeparator()
-    mw.ts_menu.addAction(ts_menu_about)
+    mw.addon_view_menu.addAction(ts_menu_switch)
+    mw.addon_view_menu.addAction(ts_menu_dots)
+    mw.addon_view_menu.addAction(ts_menu_color)
+    mw.addon_view_menu.addAction(ts_menu_width)
+    mw.addon_view_menu.addAction(ts_menu_opacity)
+    mw.addon_view_menu.addAction(ts_toolbar_settings)
+    # mw.addon_view_menu.addSeparator()
+    # mw.addon_view_menu.addAction(ts_menu_about)
 
     ts_menu_switch.triggered.connect(ts_switch)
     ts_menu_dots.triggered.connect(ts_dots)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
+    ts_toolbar_settings.triggered.connect(ts_change_toolbar_settings)
     ts_menu_about.triggered.connect(ts_about)
 
 
