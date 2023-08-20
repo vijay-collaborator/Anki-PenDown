@@ -606,6 +606,7 @@ function update_pen_settings(){
     secondary_ctx.lineJoin = ctx.lineJoin;
     secondary_ctx.lineWidth = ctx.lineWidth;
     secondary_ctx.strokeStyle = ctx.strokeStyle;
+    secondary_ctx.fillStyle = ctx.fillStyle;
     ts_redraw()
 }
 
@@ -1747,7 +1748,7 @@ function chordPrint(chord) {
 
 function drawSegment(wF,segment,width,ctx) {
     drawBezier(segment,width,wF,ctx);
-    ctx.fillStyle = "rgba(0,0,0,1)";
+    //ctx.fillStyle = "rgba(0,0,0,1)";
 }
 
 
@@ -1831,7 +1832,7 @@ function drawCompoundStroke(stroke,width,ctx) { //FIXME copypasta
         drawSegment(SEGMENT_II,stroke.segments[numSegments-1],width,ctx);
     else
         drawSegment(SEGMENT_I,stroke.segments[numSegments-1],width,ctx);
-    ctx.fillStyle = "rgba(0,0,0,1)";
+    //ctx.fillStyle = "rgba(0,0,0,1)";
     
 }
 
