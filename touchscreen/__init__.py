@@ -8,7 +8,7 @@ Initially based on the Anki-TouchScreen addon, updated ui and added pressure pen
 
 It adds an AnkiDraw menu entity with options like:
 
-    switching AnkiDraw
+    switching touchscreen
     modifying some of the colors
     thickness
     toolbar settings
@@ -405,7 +405,7 @@ body {
   position:absolute;
   top: 0px;
   left: 0px;
-   z-index: 999; /*add toggle*/
+   z-index: 999;/* add toggle?*/
   touch-action: none;/*add toggle*/
   }
 #main_canvas, #secondary_canvas {
@@ -729,12 +729,12 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
             else {needPerfectDraw = true;}
         }
         if(needPerfectDraw) {
-                var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i) ? new Path2D(
-                    getFreeDrawSvgPath(
-                        arrays_of_points[i],
-                        !is_last_path_and_currently_drawn(i)
-                        ))
-                        : perfect_cache[i]
+                var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i)  
+                    ? new Path2D(
+                            getFreeDrawSvgPath(
+                                arrays_of_points[i],
+                                !is_last_path_and_currently_drawn(i)))
+                    : perfect_cache[i]
                 perfect_cache[i] = path
                 ctx.fill(path);
         }     
@@ -750,7 +750,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
         strokes[i].draw(WEIGHT, ctx);
     }
 
-	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necesarry
+	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necessary
     pleaseRedrawEverything = false;
 	fullRedraw = false;
     nextPoint = strokes.length == 0 ? 0 : nextPoint;//reset next point if out of lines
@@ -3006,7 +3006,7 @@ def ts_dotconvert_off():
 @slot()
 def ts_switch():
     """
-    Switch AnkiDraw.
+    Switch TouchScreen.
     """
 
     if ts_state_on:
