@@ -8,7 +8,7 @@ Initially based on the Anki-TouchScreen addon, updated ui and added pressure pen
 
 It adds an AnkiDraw menu entity with options like:
 
-    switching touchscreen
+    switching AnkiDraw
     modifying some of the colors
     thickness
     toolbar settings
@@ -45,6 +45,7 @@ from PyQt5.QtCore import pyqtSlot as slot
 
 ts_state_on = False
 ts_profile_loaded = False
+ts_auto_hide = True
 
 ts_color = "#272828"
 ts_line_width = 4
@@ -227,6 +228,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-position: fixed;
                     """)
 
+def get_css_for_auto_hide(auto_hide):
+    return "none" if auto_hide else "flex"
 
 @slot()
 def ts_change_toolbar_settings():
@@ -270,6 +273,7 @@ def ts_save():
     mw.pm.profile['ts_line_width'] = ts_line_width
     mw.pm.profile['ts_opacity'] = ts_opacity
     mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_default_ConvertDotStrokes
+    mw.pm.profile['ts_auto_hide'] = ts_auto_hide
     mw.pm.profile['ts_location'] = ts_location
     mw.pm.profile['ts_x_offset'] = ts_x_offset
     mw.pm.profile['ts_y_offset'] = ts_y_offset
@@ -282,7 +286,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_auto_hide, ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
 
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
@@ -290,6 +294,8 @@ def ts_load():
         ts_line_width = mw.pm.profile['ts_line_width']
         ts_opacity = mw.pm.profile['ts_opacity']
         ts_default_ConvertDotStrokes = mw.pm.profile['ts_default_ConvertDotStrokes']
+        ts_auto_hide = mw.pm.profile['ts_auto_hide']
+        ts_menu_auto_hide.setChecked(ts_auto_hide)
         ts_fixed_position = mw.pm.profile['ts_fixed_position']
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
         ts_y_offset = mw.pm.profile['ts_y_offset']
@@ -301,6 +307,8 @@ def ts_load():
         ts_line_width = 4
         ts_opacity = 0.8
         ts_default_ConvertDotStrokes = "true"
+        ts_auto_hide = True
+        ts_menu_auto_hide.setChecked(True)
         ts_fixed_position = True
         ts_orient_vertical = True
         ts_y_offset = 2
@@ -446,7 +454,7 @@ body {
   cursor: none !important;
 } .nopointer #pencil_button_bar,
 .touch_disable > button:not(:first-child) {
-  display: none;
+  display: """+get_css_for_auto_hide(ts_auto_hide)+""";
 }
 </style>
 
@@ -3001,12 +3009,17 @@ def ts_dotconvert_off():
     ts_default_ConvertDotStrokes = "false"
     ts_menu_dots.setChecked(False)
 
-
+@slot()
+def ts_change_auto_hide_settings():
+    global ts_auto_hide
+    ts_auto_hide = not ts_auto_hide
+    ts_switch()
+    ts_switch()
 
 @slot()
 def ts_switch():
     """
-    Switch TouchScreen.
+    Switch AnkiDraw.
     """
 
     if ts_state_on:
@@ -3056,7 +3069,7 @@ def ts_setup_menu():
     """
     Initialize menu. 
     """
-    global ts_menu_switch, ts_menu_dots
+    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide
 
     try:
         mw.addon_view_menu
@@ -3071,10 +3084,11 @@ def ts_setup_menu():
 
     ts_menu_switch = QAction(_('&Enable Ankidraw'), mw, checkable=True)
     ts_menu_dots = QAction(_('Convert &dot strokes on PF mode'), mw, checkable=True)
+    ts_menu_auto_hide = QAction(_('Auto &hide toolbar when drawing'), mw, checkable=True)
     ts_menu_color = QAction(_('Set &pen color'), mw)
     ts_menu_width = QAction(_('Set pen &width'), mw)
     ts_menu_opacity = QAction(_('Set pen &opacity'), mw)
-    ts_toolbar_settings = QAction(_('&Toolbar settings'), mw)
+    ts_toolbar_settings = QAction(_('&Toolbar location settings'), mw)
     ts_menu_about = QAction(_('&About...'), mw)
 
     ts_toggle_seq = QKeySequence("Ctrl+r")
@@ -3082,6 +3096,7 @@ def ts_setup_menu():
 
     mw.addon_view_menu.addAction(ts_menu_switch)
     mw.addon_view_menu.addAction(ts_menu_dots)
+    mw.addon_view_menu.addAction(ts_menu_auto_hide)
     mw.addon_view_menu.addAction(ts_menu_color)
     mw.addon_view_menu.addAction(ts_menu_width)
     mw.addon_view_menu.addAction(ts_menu_opacity)
@@ -3091,6 +3106,7 @@ def ts_setup_menu():
 
     ts_menu_switch.triggered.connect(ts_switch)
     ts_menu_dots.triggered.connect(ts_dots)
+    ts_menu_auto_hide.triggered.connect(ts_change_auto_hide_settings)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
