@@ -365,7 +365,7 @@ def ts_onload():
 def blackboard():
     # print(get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical))
     return u"""
-<div id="canvas_wrapper" ">
+<div id="canvas_wrapper">
     <canvas id="secondary_canvas" width="100" height="100" ></canvas>
     <canvas id="main_canvas" width="100" height="100"></canvas>
 
@@ -415,6 +415,12 @@ body {
   left: 0px;
    z-index: 999;/* add toggle?*/
   touch-action: none;/*add toggle*/
+  top: var(--button-bar-pt);
+  right: var(--button-bar-pr);
+  bottom: var(--button-bar-pb);
+  left: var(--button-bar-pl);
+  border-style: dashed;
+  border-width: 1px;
   }
 #main_canvas, #secondary_canvas {
   opacity: """ + str(ts_opacity) + """;
@@ -566,13 +572,25 @@ function resize() {
     }
     // Check size of page without canvas
     canvas_wrapper.style.display='none';
-
-    ctx.canvas.width = Math.max(card.scrollWidth, document.documentElement.clientWidth);
-    ctx.canvas.height = Math.max(document.documentElement.scrollHeight, document.documentElement.clientHeight);
-    secondary_ctx.canvas.width = ctx.canvas.width;
-    secondary_ctx.canvas.height = ctx.canvas.height;
-
+    var small_canvas = true;
+    var SmallCanvasWidth = 500;
+    var SmallCanvasHeight = 500;
+    if(!small_canvas){
+        ctx.canvas.width = Math.max(card.scrollWidth, document.documentElement.clientWidth);
+        ctx.canvas.height = Math.max(document.documentElement.scrollHeight, document.documentElement.clientHeight);
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+        
+    }
+    else{
+        ctx.canvas.width = Math.min(card.scrollWidth, document.documentElement.clientWidth, SmallCanvasWidth);
+        ctx.canvas.height = Math.min(document.documentElement.scrollHeight, document.documentElement.clientHeight, SmallCanvasHeight);
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+    }
+    
     canvas_wrapper.style.display='block';
+    
     
     
     /* Get DPR with 1 as fallback */

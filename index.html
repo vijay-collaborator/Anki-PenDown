@@ -33,6 +33,12 @@ body::-webkit-scrollbar {
     top: 0px;
     left: 0px;
     z-index: 999;
+    top: 0px;
+    right: 2px;
+    bottom: 0px;
+    left: 0px;
+    border-style: dashed;
+    border-width: 1px;
 }
 
 #main_canvas, #secondary_canvas{
@@ -198,15 +204,25 @@ function switch_class(e,c)
 
 function resize() {
     var card = document.getElementsByClassName('card')[0]
-    ctx.canvas.width = window.innerWidth-1;
-    ctx.canvas.height = Math.max(
-        document.body.clientHeight,
-        window.innerHeight,
-        card ? card.scrollHeight : 0
-    )-1;
-    secondary_ctx.canvas.width = ctx.canvas.width;
-    secondary_ctx.canvas.height = ctx.canvas.height;
 
+    var small_canvas = true;
+    var SmallCanvasWidth = 500;
+    var SmallCanvasHeight = 500;
+    if(!small_canvas){
+        ctx.canvas.width = Math.max(window.innerWidth-1);
+        ctx.canvas.height = Math.max(document.body.clientHeight,
+        window.innerHeight,
+        card ? card.scrollHeight : 0)-1;
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+        
+    }
+    else{
+        ctx.canvas.width = Math.min(window.innerWidth-1,SmallCanvasWidth);
+        ctx.canvas.height = SmallCanvasHeight;
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+    }
 	/* Get DPR with 1 as fallback */
     var dpr = window.devicePixelRatio || 1;
     dpr = dpr > 1 ? dpr : 1;
@@ -215,6 +231,7 @@ function resize() {
     wrapper.style.width = ctx.canvas.width + 'px';
     secondary_canvas.style.height = canvas.style.height;
     secondary_canvas.style.width = canvas.style.width;
+    
     
     /* Increase DOM size and scale */
     ctx.canvas.width *= dpr;
@@ -303,7 +320,7 @@ function start_drawing() {
 
 function draw_last_line_segment() {
     
-    throttle(draw_upto_latest_point_async(nextLine, nextPoint, nextStroke),50);
+    throttle(draw_upto_latest_point_async(nextLine, nextPoint, nextStroke),1);
     window.requestAnimationFrame(draw_last_line_segment);
 }
 
@@ -357,7 +374,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
             //console.log("begin");
         }
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-            console.log("draw");
+            //console.log("draw");
             nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
             p1 = p2;
             p2 = p3;
