@@ -24,7 +24,7 @@ Important parts of Javascript code inspired by http://creativejs.com/tutorials/p
 """
 
 __addon_name__ = "AnkiDraw"
-__version__ = "1.0"
+__version__ = "1.1"
 
 from aqt import mw, dialogs
 from aqt.utils import showWarning
@@ -46,6 +46,7 @@ from PyQt5.QtCore import pyqtSlot as slot
 ts_state_on = False
 ts_profile_loaded = False
 ts_auto_hide = True
+ts_follow = False
 
 ts_color = "#272828"
 ts_line_width = 4
@@ -53,7 +54,8 @@ ts_opacity = 0.7
 ts_location = 1
 ts_x_offset = 2
 ts_y_offset = 2
-ts_fixed_position = True
+ts_small_width = 500
+ts_small_height = 500
 ts_orient_vertical = True
 ts_default_review_html = mw.reviewer.revHtml
 
@@ -101,7 +103,7 @@ class CustomDialog(QDialog):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("AnkiDraw Toolbar")
+        self.setWindowTitle("AnkiDraw Toolbar And Canvas")
 
         self.combo_box = QComboBox()
         self.combo_box.addItem("Top-Left")
@@ -112,28 +114,44 @@ class CustomDialog(QDialog):
         combo_label = QLabel("Location:")
 
         range_label = QLabel("Offset:")
+
         start_range_label = QLabel("X Offset:")
-        end_range_label = QLabel("Y Offset:")
         self.start_spin_box = QSpinBox()
         self.start_spin_box.setRange(0, 1000)
+
+        small_width_label = QLabel("Non-Fullscreen Canvas Width:")
+        self.small_width_spin_box = QSpinBox()
+        self.small_width_spin_box.setRange(0, 9999)
+
+        small_height_label = QLabel("Non-Fullscreen Canvas Width:")
+        self.small_height_spin_box = QSpinBox()
+        self.small_height_spin_box.setRange(0, 9999)
+
+        end_range_label = QLabel("Y Offset:")
         self.end_spin_box = QSpinBox()
         self.end_spin_box.setRange(0, 1000)
+
         range_layout = QVBoxLayout()
+
+        small_height_layout = QHBoxLayout()
+        small_height_layout.addWidget(small_width_label)
+        small_height_layout.addWidget(self.small_width_spin_box)
+
+        small_width_layout = QHBoxLayout()
+        small_width_layout.addWidget(small_height_label)
+        small_width_layout.addWidget(self.small_height_spin_box)
+
         start_layout = QHBoxLayout()
         start_layout.addWidget(start_range_label)
         start_layout.addWidget(self.start_spin_box)
+
         end_layout = QHBoxLayout()
         end_layout.addWidget(end_range_label)
         end_layout.addWidget(self.end_spin_box)
         range_layout.addLayout(start_layout)
         range_layout.addLayout(end_layout)
-
-        checkbox_label = QLabel("Follow when scrolling:")
-        self.checkbox = QCheckBox()
-
-        checkbox_layout = QHBoxLayout()
-        checkbox_layout.addWidget(checkbox_label)
-        checkbox_layout.addWidget(self.checkbox)
+        range_layout.addLayout(small_height_layout)
+        range_layout.addLayout(small_width_layout)
 
         checkbox_label2 = QLabel("Orient vertically:")
         self.checkbox2 = QCheckBox()
@@ -161,28 +179,28 @@ class CustomDialog(QDialog):
         dialog_layout.addWidget(self.combo_box)
         dialog_layout.addWidget(range_label)
         dialog_layout.addLayout(range_layout)
-        dialog_layout.addLayout(checkbox_layout)
         dialog_layout.addLayout(checkbox_layout2)
         dialog_layout.addLayout(button_layout)
         self.setLayout(dialog_layout)
 
-    def set_values(self, combo_index, start_value, end_value, checkbox_state, checkbox_state2):
+    def set_values(self, combo_index, start_value, end_value, checkbox_state2, height, width):
         self.combo_box.setCurrentIndex(combo_index)
         self.start_spin_box.setValue(start_value)
+        self.small_height_spin_box.setValue(height)
+        self.small_width_spin_box.setValue(width)
         self.end_spin_box.setValue(end_value)
-        self.checkbox.setChecked(checkbox_state)
         self.checkbox2.setChecked(checkbox_state2)
 
     def reset_to_default(self):
         self.combo_box.setCurrentIndex(1)
         self.start_spin_box.setValue(2)
         self.end_spin_box.setValue(2)
-        self.checkbox.setChecked(True)
+        self.small_height_spin_box.setValue(500)
+        self.small_width_spin_box.setValue(500)
         self.checkbox2.setChecked(True)
 
 
-def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_column):
-    position = "fixed" if is_fixed else "absolute"
+def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height):
     orient = "column" if orient_column else "row"
     print(location)
     switch = {
@@ -192,7 +210,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-pb: unset;
                         --button-bar-pl: {x_offset}px;
                         --button-bar-orientation: {orient};
-                        --button-bar-position: {position};
+                        --small-canvas-height: {canvas_height};
+                        --small-canvas-width: {canvas_width};
                     """,
         1: f"""
                         --button-bar-pt: {y_offset}px;
@@ -200,7 +219,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-pb: unset;
                         --button-bar-pl: unset;
                         --button-bar-orientation: {orient};
-                        --button-bar-position: {position};
+                        --small-canvas-height: {canvas_height};
+                        --small-canvas-width: {canvas_width};
                     """,
         2: f"""
                         --button-bar-pt: unset;
@@ -208,7 +228,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-pb: {y_offset}px;
                         --button-bar-pl: {x_offset}px;
                         --button-bar-orientation: {orient};
-                        --button-bar-position: {position};
+                        --small-canvas-height: {canvas_height};
+                        --small-canvas-width: {canvas_width};
                     """,
         3: f"""
                         --button-bar-pt: unset;
@@ -216,7 +237,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-pb: {y_offset}px;
                         --button-bar-pl: unset;
                         --button-bar-orientation: {orient};
-                        --button-bar-position: {position};
+                        --small-canvas-height: {canvas_height};
+                        --small-canvas-width: {canvas_width};
                     """,
     }
     return switch.get(location, """
@@ -225,7 +247,8 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, is_fixed, orient_
                         --button-bar-pb: unset;
                         --button-bar-pl: unset;
                         --button-bar-orientation: column;
-                        --button-bar-position: fixed;
+                        --small-canvas-height: 500;
+                        --small-canvas-width: 500;
                     """)
 
 def get_css_for_auto_hide(auto_hide):
@@ -233,17 +256,18 @@ def get_css_for_auto_hide(auto_hide):
 
 @slot()
 def ts_change_toolbar_settings():
-    global ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
+    global ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
     
     dialog = CustomDialog()
-    dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical) 
+    dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height) 
     result = dialog.exec_()
 
     if result == QDialog.Accepted:
         ts_location = dialog.combo_box.currentIndex()
         ts_x_offset = dialog.start_spin_box.value()
         ts_y_offset = dialog.end_spin_box.value()
-        ts_fixed_position = dialog.checkbox.isChecked()
+        ts_small_height = dialog.small_height_spin_box.value()
+        ts_small_width = dialog.small_width_spin_box.value()
         ts_orient_vertical = dialog.checkbox2.isChecked()
         ts_switch()
         ts_switch()
@@ -274,10 +298,12 @@ def ts_save():
     mw.pm.profile['ts_opacity'] = ts_opacity
     mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_default_ConvertDotStrokes
     mw.pm.profile['ts_auto_hide'] = ts_auto_hide
+    mw.pm.profile['ts_follow'] = ts_follow
     mw.pm.profile['ts_location'] = ts_location
     mw.pm.profile['ts_x_offset'] = ts_x_offset
     mw.pm.profile['ts_y_offset'] = ts_y_offset
-    mw.pm.profile['ts_fixed_position'] = ts_fixed_position
+    mw.pm.profile['ts_small_height'] = ts_small_height
+    mw.pm.profile['ts_small_width'] = ts_small_width
     mw.pm.profile['ts_orient_vertical'] = ts_orient_vertical
 
 
@@ -286,7 +312,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_auto_hide, ts_fixed_position, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_auto_hide, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
 
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
@@ -295,10 +321,13 @@ def ts_load():
         ts_opacity = mw.pm.profile['ts_opacity']
         ts_default_ConvertDotStrokes = mw.pm.profile['ts_default_ConvertDotStrokes']
         ts_auto_hide = mw.pm.profile['ts_auto_hide']
+        ts_follow = mw.pm.profile['ts_follow']
         ts_menu_auto_hide.setChecked(ts_auto_hide)
-        ts_fixed_position = mw.pm.profile['ts_fixed_position']
+        ts_menu_follow.setChecked(ts_follow)
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
         ts_y_offset = mw.pm.profile['ts_y_offset']
+        ts_small_width = mw.pm.profile['ts_small_width']
+        ts_small_height = mw.pm.profile['ts_small_height']
         ts_x_offset = mw.pm.profile['ts_x_offset']
         ts_location = mw.pm.profile['ts_location']
     except KeyError:
@@ -308,10 +337,13 @@ def ts_load():
         ts_opacity = 0.8
         ts_default_ConvertDotStrokes = "true"
         ts_auto_hide = True
+        ts_follow = False
         ts_menu_auto_hide.setChecked(True)
-        ts_fixed_position = True
+        ts_menu_follow.setChecked(True)
         ts_orient_vertical = True
         ts_y_offset = 2
+        ts_small_width = 500
+        ts_small_height = 500
         ts_x_offset = 2
         ts_location = 1
     ts_profile_loaded = True
@@ -363,7 +395,7 @@ def ts_onload():
 
 
 def blackboard():
-    # print(get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical))
+    # print(get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical))
     return u"""
 <div id="canvas_wrapper">
     <canvas id="secondary_canvas" width="100" height="100" ></canvas>
@@ -391,15 +423,19 @@ def blackboard():
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
         </button>
 
-        <button class="active" title="Clean whiteboard (. dot)"
+        <button class="active" title="Clean canvas (. dot)"
               onclick="clear_canvas();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path><path d="M10 12l4 4m0 -4l-4 4"></path></svg>
+
+        <button id="ts_switch_fullscreen_button" class="active" title="Toggle fullscreen canvas(Alt + b)"
+              onclick="switch_small_canvas();" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M9.00002 3.99998H4.00004L4 9M20 8.99999V4L15 3.99997M15 20H20L20 15M4 15L4 20L9.00002 20"></path></svg>
         </button>
     </div>
 </div>
 <style>
 :root {
-  """ + get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_fixed_position, ts_orient_vertical) + """
+  """ + get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height) + """
 }
 body {
   overflow-x: hidden; /* Hide horizontal scrollbar */
@@ -410,23 +446,22 @@ body {
     https://stackoverflow.com/questions/59010779/pointer-event-issue-pointercancel-with-pressure-input-pen
 */
 #canvas_wrapper, #main_canvas, #secondary_canvas {
-  position:absolute;
-  top: 0px;
-  left: 0px;
    z-index: 999;/* add toggle?*/
   touch-action: none;/*add toggle*/
-  top: var(--button-bar-pt);
-  right: var(--button-bar-pr);
-  bottom: var(--button-bar-pb);
-  left: var(--button-bar-pl);
-  border-style: dashed;
-  border-width: 1px;
+  
+  position:var(--canvas-bar-position);
+  top: var(--canvas-bar-pt);
+  right: var(--canvas-bar-pr);
+  bottom: var(--canvas-bar-pb);
+  left: var(--canvas-bar-pl);
   }
 #main_canvas, #secondary_canvas {
   opacity: """ + str(ts_opacity) + """;
+  border-style: none;
+  border-width: 1px;
 }
 #pencil_button_bar {
-  position: var(--button-bar-position);
+  position: fixed;
   display: flex;
   flex-direction: var(--button-bar-orientation);
   opacity: .5;
@@ -477,6 +512,7 @@ var secondary_ctx = secondary_canvas.getContext('2d');
 var ts_visibility_button = document.getElementById('ts_visibility_button');
 var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ts_perfect_freehand_button = document.getElementById('ts_perfect_freehand_button');
+var ts_switch_fullscreen_button = document.getElementById('ts_switch_fullscreen_button');
 var arrays_of_points = [ ];
 var convertDotStrokes = """ + ts_default_ConvertDotStrokes + """;
 var color = '#fff';
@@ -484,6 +520,8 @@ var calligraphy = """ + ts_default_Calligraphy + """;
 var line_type_history = [ ];
 var perfect_cache = [ ];
 var line_width = 4;
+var small_canvas = false;
+var fullscreen_follow = """ + str(ts_follow).lower() + """;
 
 canvas.onselectstart = function() { return false; };
 secondary_canvas.onselectstart = function() { return false; };
@@ -503,6 +541,21 @@ function switch_perfect_freehand()
         ts_perfect_freehand_button.className = '';
     }
     ts_redraw()
+}
+
+function switch_small_canvas()
+{
+    stop_drawing();
+    
+    small_canvas = !small_canvas;
+    if(!small_canvas)
+    {
+        ts_switch_fullscreen_button.className = 'active';
+    }
+    else{
+        ts_switch_fullscreen_button.className = '';
+    }
+    resize();
 }
 
 function switch_visibility()
@@ -572,23 +625,40 @@ function resize() {
     }
     // Check size of page without canvas
     canvas_wrapper.style.display='none';
-    var small_canvas = true;
-    var SmallCanvasWidth = 500;
-    var SmallCanvasHeight = 500;
-    if(!small_canvas){
+    canvas.style["border-style"] = "none";
+    document.documentElement.style.setProperty('--canvas-bar-pt', '0px');
+    document.documentElement.style.setProperty('--canvas-bar-pr', '0px');
+    document.documentElement.style.setProperty('--canvas-bar-pb', 'unset');
+    document.documentElement.style.setProperty('--canvas-bar-pl', 'unset');
+    document.documentElement.style.setProperty('--canvas-bar-position', 'absolute');
+    
+    if(!small_canvas && !fullscreen_follow){
         ctx.canvas.width = Math.max(card.scrollWidth, document.documentElement.clientWidth);
-        ctx.canvas.height = Math.max(document.documentElement.scrollHeight, document.documentElement.clientHeight);
-        secondary_ctx.canvas.width = ctx.canvas.width;
-        secondary_ctx.canvas.height = ctx.canvas.height;
-        
+        ctx.canvas.height = Math.max(document.documentElement.scrollHeight, document.documentElement.clientHeight);        
+    }
+    else if(small_canvas){
+        ctx.canvas.width = Math.min(document.documentElement.clientWidth, 
+        getComputedStyle(document.documentElement).getPropertyValue('--small-canvas-width'));
+        ctx.canvas.height = Math.min(document.documentElement.clientHeight, 
+        getComputedStyle(document.documentElement).getPropertyValue('--small-canvas-height'));
+        canvas.style["border-style"] = "dashed";
+        document.documentElement.style.setProperty('--canvas-bar-pt', 
+        getComputedStyle(document.documentElement).getPropertyValue('--button-bar-pt'));
+        document.documentElement.style.setProperty('--canvas-bar-pr', 
+        getComputedStyle(document.documentElement).getPropertyValue('--button-bar-pr'));
+        document.documentElement.style.setProperty('--canvas-bar-pb', 
+        getComputedStyle(document.documentElement).getPropertyValue('--button-bar-pb'));
+        document.documentElement.style.setProperty('--canvas-bar-pl', 
+        getComputedStyle(document.documentElement).getPropertyValue('--button-bar-pl'));
+        document.documentElement.style.setProperty('--canvas-bar-position', 'fixed');
     }
     else{
-        ctx.canvas.width = Math.min(card.scrollWidth, document.documentElement.clientWidth, SmallCanvasWidth);
-        ctx.canvas.height = Math.min(document.documentElement.scrollHeight, document.documentElement.clientHeight, SmallCanvasHeight);
-        secondary_ctx.canvas.width = ctx.canvas.width;
-        secondary_ctx.canvas.height = ctx.canvas.height;
+        document.documentElement.style.setProperty('--canvas-bar-position', 'fixed');
+        ctx.canvas.width = document.documentElement.clientWidth-1;
+        ctx.canvas.height = document.documentElement.clientHeight-1;
     }
-    
+    secondary_ctx.canvas.width = ctx.canvas.width;
+    secondary_ctx.canvas.height = ctx.canvas.height;
     canvas_wrapper.style.display='block';
     
     
@@ -856,9 +926,13 @@ document.addEventListener('keyup', function(e) {
         switch_drawing_mode();
     }
         // alt + X or x
-        if ((e.key === "x" || e.key === "X") && e.altKey) {
+    if ((e.key === "x" || e.key === "X") && e.altKey) {
         e.preventDefault();
         switch_perfect_freehand();
+    }
+    if ((e.key === "b" || e.key === "B") && e.altKey) {
+        e.preventDefault();
+        switch_small_canvas();
     }
 })
 // ----------------------------------------- Perfect Freehand -----------------------------------------
@@ -3031,8 +3105,22 @@ def ts_dotconvert_off():
 def ts_change_auto_hide_settings():
     global ts_auto_hide
     ts_auto_hide = not ts_auto_hide
+    if ts_default_ConvertDotStrokes == 'true':
+        ts_dotconvert_off()
+    else:
+        ts_dotconvert_on()
+
+    execute_js("convertDotStrokes = " + ts_default_ConvertDotStrokes + "; update_pen_settings()")
     ts_switch()
     ts_switch()
+
+@slot()
+def ts_change_follow_settings():
+    global ts_follow
+    ts_follow = not ts_follow
+    execute_js("fullscreen_follow = " + str(ts_follow).lower() + "; resize()")
+    ts_refresh()
+    
 
 @slot()
 def ts_switch():
@@ -3087,7 +3175,7 @@ def ts_setup_menu():
     """
     Initialize menu. 
     """
-    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide
+    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_follow
 
     try:
         mw.addon_view_menu
@@ -3103,10 +3191,11 @@ def ts_setup_menu():
     ts_menu_switch = QAction(_('&Enable Ankidraw'), mw, checkable=True)
     ts_menu_dots = QAction(_('Convert &dot strokes on PF mode'), mw, checkable=True)
     ts_menu_auto_hide = QAction(_('Auto &hide toolbar when drawing'), mw, checkable=True)
+    ts_menu_follow = QAction(_('&Follow when scrolling (faster on big cards)'), mw, checkable=True)
     ts_menu_color = QAction(_('Set &pen color'), mw)
     ts_menu_width = QAction(_('Set pen &width'), mw)
     ts_menu_opacity = QAction(_('Set pen &opacity'), mw)
-    ts_toolbar_settings = QAction(_('&Toolbar location settings'), mw)
+    ts_toolbar_settings = QAction(_('&Toolbar and canvas location settings'), mw)
     ts_menu_about = QAction(_('&About...'), mw)
 
     ts_toggle_seq = QKeySequence("Ctrl+r")
@@ -3115,6 +3204,7 @@ def ts_setup_menu():
     mw.addon_view_menu.addAction(ts_menu_switch)
     mw.addon_view_menu.addAction(ts_menu_dots)
     mw.addon_view_menu.addAction(ts_menu_auto_hide)
+    mw.addon_view_menu.addAction(ts_menu_follow)
     mw.addon_view_menu.addAction(ts_menu_color)
     mw.addon_view_menu.addAction(ts_menu_width)
     mw.addon_view_menu.addAction(ts_menu_opacity)
@@ -3125,6 +3215,7 @@ def ts_setup_menu():
     ts_menu_switch.triggered.connect(ts_switch)
     ts_menu_dots.triggered.connect(ts_dots)
     ts_menu_auto_hide.triggered.connect(ts_change_auto_hide_settings)
+    ts_menu_follow.triggered.connect(ts_change_follow_settings)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
