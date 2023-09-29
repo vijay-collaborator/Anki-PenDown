@@ -8,6 +8,7 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
   </a><br>
 
 # Changes
+* Added follow screen mode(menu option) and small canvas mode(<kbd>alt + b</kbd>) to increase drawing speed on very big cards 
 * Added toolbar location configuration and other small fixes.
 * Fixed "resize not defined" error. Thanks huandney.
 * Updated UI, add option to convert dots, hide cursor and ui while drawing. Thanks rin-w
@@ -21,13 +22,17 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
 
 ## Hardware
 Tested to work with a Huion H1161, Windows Pen enabled.
-### For best exprience dont use software rendering and turn on use pen as a mouse
+### For best experience:
+* #### don't use software rendering(enable hardware acceleration) 
+* #### turn on use pen as a mouse with Windows Pen
+* #### if drawing is slow on big cards turn on follow mode or small canvas
 https://docs.ankiweb.net/platform/windows/display-issues.html
 #### Run `echo auto > %APPDATA%\Anki2\gldriver6` in cmd for Qt6
 <table> <img alt="Switch away from Software in Qt6" src="docs/qt6fast.png"><tr>
 <td> Qt5 rendering change <img alt="Switch away from Software in Qt5" src="docs/dontUseSoftwareRendering.png"> </td>
 <td> <img alt="Check use pen as mouse in Windows pen settings" src="docs/usePenAsMouse.png"> </td>
 </tr></table>
+<img alt="Turn On Follow when scrolling or small canvas if drawing is slow on very big cards" src="docs/followScreenOnBigCards.png">
 
 # Old Description
   

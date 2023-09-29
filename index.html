@@ -33,6 +33,12 @@ body::-webkit-scrollbar {
     top: 0px;
     left: 0px;
     z-index: 999;
+    top: 0px;
+    right: 2px;
+    bottom: 0px;
+    left: 0px;
+    border-style: dashed;
+    border-width: 1px;
 }
 
 #main_canvas, #secondary_canvas{
@@ -145,6 +151,31 @@ canvas.addEventListener("pointerdown", pointerDownCaligraphy);
 canvas.addEventListener("pointermove", pointerMoveCaligraphy);
 window.addEventListener("pointerup", pointerUpCaligraphy);
 
+function debounce(func, wait) {
+  let timeout;
+  return function () {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
+      func.apply(this, arguments);
+    }, wait);
+  };
+}
+function throttle(func, wait) {
+  let waiting = false;
+  return function () {
+    if (waiting) {
+      return;
+    }
+
+    waiting = true;
+    setTimeout(() => {
+      func.apply(this, arguments);
+      waiting = false;
+    }, wait);
+  };
+}
 function switch_drawing_mode()
 {
     stop_drawing();
@@ -173,15 +204,25 @@ function switch_class(e,c)
 
 function resize() {
     var card = document.getElementsByClassName('card')[0]
-    ctx.canvas.width = window.innerWidth-1;
-    ctx.canvas.height = Math.max(
-        document.body.clientHeight,
-        window.innerHeight,
-        card ? card.scrollHeight : 0
-    )-1;
-    secondary_ctx.canvas.width = ctx.canvas.width;
-    secondary_ctx.canvas.height = ctx.canvas.height;
 
+    var small_canvas = true;
+    var SmallCanvasWidth = 500;
+    var SmallCanvasHeight = 500;
+    if(!small_canvas){
+        ctx.canvas.width = Math.max(window.innerWidth-1);
+        ctx.canvas.height = Math.max(document.body.clientHeight,
+        window.innerHeight,
+        card ? card.scrollHeight : 0)-1;
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+        
+    }
+    else{
+        ctx.canvas.width = Math.min(window.innerWidth-1,SmallCanvasWidth);
+        ctx.canvas.height = SmallCanvasHeight;
+        secondary_ctx.canvas.width = ctx.canvas.width;
+        secondary_ctx.canvas.height = ctx.canvas.height;
+    }
 	/* Get DPR with 1 as fallback */
     var dpr = window.devicePixelRatio || 1;
     dpr = dpr > 1 ? dpr : 1;
@@ -190,6 +231,7 @@ function resize() {
     wrapper.style.width = ctx.canvas.width + 'px';
     secondary_canvas.style.height = canvas.style.height;
     secondary_canvas.style.width = canvas.style.width;
+    
     
     /* Increase DOM size and scale */
     ctx.canvas.width *= dpr;
@@ -277,8 +319,9 @@ function start_drawing() {
 }
 
 function draw_last_line_segment() {
+    
+    throttle(draw_upto_latest_point_async(nextLine, nextPoint, nextStroke),1);
     window.requestAnimationFrame(draw_last_line_segment);
-    draw_upto_latest_point_async(nextLine, nextPoint, nextStroke);
 }
 
 var nextLine = 0;
@@ -307,9 +350,10 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	//if(!pleaseRedrawEverything && 
     //(startLine == arrays_of_points.length && startPoint == arrays_of_points[startLine-1].length) && 
     //(startStroke == strokes.length)) return;
-
+    //console.log(startLine, startPoint, startStroke);
 	var fullRedraw = false;//keep track if this call started a full redraw to unset pleaseRedrawEverything flag later.
 	if (pleaseRedrawEverything) {// erase everything and draw from start
+        console.log("redraw");
 	fullRedraw = true;
 	startLine = 0;
 	startPoint = 0;
@@ -319,23 +363,34 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 
 	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
         var needPerfectDraw = false;
+        var weDrawing = startPoint < arrays_of_points[i].length;
 		nextLine = i;
         ///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
         //take the 2 previous points in addition to current one at the start of the loop.
         p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
         p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
+        if(!perfectFreehand && weDrawing){
+            ctx.beginPath();
+            //console.log("begin");
+        }
         for(var j = startPoint; j < arrays_of_points[i].length; j++){
-
+            //console.log("draw");
             nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
             p1 = p2;
             p2 = p3;
             p3 = arrays_of_points[i][j];
             if(!perfectFreehand){
-                draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[3]);
+                //draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[3]);
+                
+                ctx.moveTo((p1[0] + (p2[0] - p1[0]) / 2), (p1[1] + (p2[1] - p1[1])/ 2));//midpoint calculation for x and y
+                ctx.quadraticCurveTo(p2[0], p2[1], (p2[0] + (p3[0] - p2[0]) / 2), (p2[1] + (p3[1] - p2[1])/ 2));
+                ctx.lineWidth = p3[3];
+                
             }
             else {needPerfectDraw = true;}
             
         }
+        if(!needPerfectDraw && weDrawing)ctx.stroke();
         if(needPerfectDraw) {
                 var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i) ? new Path2D(
                     getFreeDrawSvgPath(
@@ -389,10 +444,11 @@ function pointerDownLine(e) {
     }
 }
 
-function pointerMoveLine(e) {
+async function pointerMoveLine(e) {
 	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
     if (isPointerDown && active) {
+        //console.log("data");
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
@@ -522,20 +578,6 @@ function pointerUpCaligraphy(e) {
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
     secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
 };
-
-// // handled in ts_undo()
-// keydown = function(event) {
-//     var k = event.keyCode;
-//     console.log(k);
-//     if(k==68) {
-//         strokes.pop();
-//     }
-//     update();
-// };
-//
-//window.addEventListener("keydown",keydown,true);
-//
-//update();
 
 // ----------------------------------------- Perfect Freehand -----------------------------------------
 
