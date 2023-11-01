@@ -33,12 +33,10 @@ from aqt.utils import showWarning
 from anki.lang import _
 from anki.hooks import addHook
 
-from PyQt5.QtWidgets import QAction, QMenu, QColorDialog, QMessageBox, QInputDialog, QApplication, QMainWindow, QLabel,\
+from aqt.qt import QAction, QMenu, QColorDialog, QMessageBox, QInputDialog, QLabel,\
    QPushButton, QDialog, QVBoxLayout, QComboBox, QHBoxLayout, QSpinBox, QCheckBox
-from PyQt5 import QtCore
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import pyqtSlot as slot
+from aqt.qt import QKeySequence,QColor
+from aqt.qt import pyqtSlot as slot
 
 # This declarations are there only to be sure that in case of troubles
 # with "profileLoaded" hook everything will work.
