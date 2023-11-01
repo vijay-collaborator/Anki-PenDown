@@ -3180,7 +3180,7 @@ def ts_setup_menu():
     try:
         mw.addon_view_menu
     except AttributeError:
-        mw.addon_view_menu = QMenu(_(u"&AnkiDraw"), mw)
+        mw.addon_view_menu = QMenu("""&AnkiDraw""", mw)
         mw.form.menubar.insertMenu(mw.form.menuTools.menuAction(),
                                     mw.addon_view_menu)
 
@@ -3188,15 +3188,15 @@ def ts_setup_menu():
 
     # mw.addon_view_menu.addMenu(mw.ts_menu)
 
-    ts_menu_switch = QAction(_('&Enable Ankidraw'), mw, checkable=True)
-    ts_menu_dots = QAction(_('Convert &dot strokes on PF mode'), mw, checkable=True)
-    ts_menu_auto_hide = QAction(_('Auto &hide toolbar when drawing'), mw, checkable=True)
-    ts_menu_follow = QAction(_('&Follow when scrolling (faster on big cards)'), mw, checkable=True)
-    ts_menu_color = QAction(_('Set &pen color'), mw)
-    ts_menu_width = QAction(_('Set pen &width'), mw)
-    ts_menu_opacity = QAction(_('Set pen &opacity'), mw)
-    ts_toolbar_settings = QAction(_('&Toolbar and canvas location settings'), mw)
-    ts_menu_about = QAction(_('&About...'), mw)
+    ts_menu_switch = QAction("""&Enable Ankidraw""", mw, checkable=True)
+    ts_menu_dots = QAction("""Convert &dot strokes on PF mode""", mw, checkable=True)
+    ts_menu_auto_hide = QAction("""Auto &hide toolbar when drawing""", mw, checkable=True)
+    ts_menu_follow = QAction("""&Follow when scrolling (faster on big cards)""", mw, checkable=True)
+    ts_menu_color = QAction("""Set &pen color""", mw)
+    ts_menu_width = QAction("""Set pen &width""", mw)
+    ts_menu_opacity = QAction("""Set pen &opacity""", mw)
+    ts_toolbar_settings = QAction("""&Toolbar and canvas location settings""", mw)
+    ts_menu_about = QAction("""&About...""", mw)
 
     ts_toggle_seq = QKeySequence("Ctrl+r")
     ts_menu_switch.setShortcut(ts_toggle_seq)
