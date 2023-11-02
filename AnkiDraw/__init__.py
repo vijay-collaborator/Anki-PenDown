@@ -24,7 +24,7 @@ Important parts of Javascript code inspired by http://creativejs.com/tutorials/p
 """
 
 __addon_name__ = "AnkiDraw"
-__version__ = "1.1"
+__version__ = "1.2"
 
 from aqt import mw
 from aqt.utils import showWarning
