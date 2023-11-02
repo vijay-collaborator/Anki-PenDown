@@ -3101,7 +3101,7 @@ def ts_switch():
     # Reload current screen.
 
     if mw.state == "review":
-        mw.moveToState('overview')
+        #mw.moveToState('overview')
         mw.moveToState('review')
     if mw.state == "deckBrowser":
         mw.deckBrowser.refresh()
