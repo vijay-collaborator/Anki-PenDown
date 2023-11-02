@@ -199,7 +199,6 @@ class CustomDialog(QDialog):
 
 def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height):
     orient = "column" if orient_column else "row"
-    print(location)#REMOVE
     switch = {
         0: f"""
                         --button-bar-pt: {y_offset}px;
@@ -1340,7 +1339,7 @@ function setBoneAngles(c,dirList) {
                 offset = c.skeleton[bone].offset/180*Math.PI,
                 vec = c.sections[p[0]][p[1]];
             //console.log(vec);
-            console.log(dir-offset);
+            //console.log(dir-offset);
             //console.log(rotate(vec,dir-offset));
             c.sections[p[0]][p[1]] = rotate(vec,dir-offset);
             
