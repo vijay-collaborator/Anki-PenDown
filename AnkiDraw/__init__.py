@@ -44,6 +44,7 @@ ts_state_on = False
 ts_profile_loaded = False
 ts_auto_hide = True
 ts_follow = False
+ts_ConvertDotStrokes = True
 
 ts_color = "#272828"
 ts_line_width = 4
@@ -56,7 +57,7 @@ ts_small_height = 500
 ts_orient_vertical = True
 ts_default_review_html = mw.reviewer.revHtml
 
-ts_default_ConvertDotStrokes = "true"
+
 
 ts_default_VISIBILITY = "true"
 ts_default_PerfFreehand = "false"
@@ -72,8 +73,8 @@ def ts_change_color():
     qcolor = QColorDialog.getColor(qcolor_old)
     if qcolor.isValid():
         ts_color = qcolor.name()
-        execute_js("color = '" + ts_color + "'; update_pen_settings()")
-        ts_refresh()
+        execute_js("color = '" + ts_color + "';")
+        execute_js("if (typeof update_pen_settings === 'function') { update_pen_settings(); }")
 
 
 @slot()
@@ -82,8 +83,8 @@ def ts_change_width():
     value, accepted = QInputDialog.getDouble(mw, "AnkiDraw", "Enter the width:", ts_line_width)
     if accepted:
         ts_line_width = value
-        execute_js("line_width = '" + str(ts_line_width) + "'; update_pen_settings()")
-        ts_refresh()
+        execute_js("line_width = '" + str(ts_line_width) + "';")
+        execute_js("if (typeof update_pen_settings === 'function') { update_pen_settings(); }")
 
 
 @slot()
@@ -93,7 +94,6 @@ def ts_change_opacity():
     if accepted:
         ts_opacity = value / 100
         execute_js("canvas.style.opacity = " + str(ts_opacity))
-        ts_refresh()
 
 
 class CustomDialog(QDialog):
@@ -199,7 +199,7 @@ class CustomDialog(QDialog):
 
 def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height):
     orient = "column" if orient_column else "row"
-    print(location)
+    print(location)#REMOVE
     switch = {
         0: f"""
                         --button-bar-pt: {y_offset}px;
@@ -257,9 +257,9 @@ def ts_change_toolbar_settings():
     
     dialog = CustomDialog()
     dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height) 
-    result = dialog.exec_()
+    result = dialog.exec()
 
-    if result == QDialog.Accepted:
+    if result == QDialog.DialogCode.Accepted:
         ts_location = dialog.combo_box.currentIndex()
         ts_x_offset = dialog.start_spin_box.value()
         ts_y_offset = dialog.end_spin_box.value()
@@ -268,20 +268,6 @@ def ts_change_toolbar_settings():
         ts_orient_vertical = dialog.checkbox2.isChecked()
         ts_switch()
         ts_switch()
-
-
-
-@slot()
-def ts_about():
-    """
-    Show "about" window.
-    """
-    ts_about_box = QMessageBox()
-    ts_about_box.setText(__addon_name__ + " " + __version__ + __doc__)
-    ts_about_box.setGeometry(300, 300, 250, 150)
-    ts_about_box.setWindowTitle("About " + __addon_name__ + " " + __version__)
-
-    ts_about_box.exec_()
 
 
 def ts_save():
@@ -293,7 +279,7 @@ def ts_save():
     mw.pm.profile['ts_color'] = ts_color
     mw.pm.profile['ts_line_width'] = ts_line_width
     mw.pm.profile['ts_opacity'] = ts_opacity
-    mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_default_ConvertDotStrokes
+    mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_ConvertDotStrokes
     mw.pm.profile['ts_auto_hide'] = ts_auto_hide
     mw.pm.profile['ts_follow'] = ts_follow
     mw.pm.profile['ts_location'] = ts_location
@@ -309,18 +295,15 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_default_ConvertDotStrokes, ts_auto_hide, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
-
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
         ts_line_width = mw.pm.profile['ts_line_width']
         ts_opacity = mw.pm.profile['ts_opacity']
-        ts_default_ConvertDotStrokes = mw.pm.profile['ts_default_ConvertDotStrokes']
         ts_auto_hide = mw.pm.profile['ts_auto_hide']
         ts_follow = mw.pm.profile['ts_follow']
-        ts_menu_auto_hide.setChecked(ts_auto_hide)
-        ts_menu_follow.setChecked(ts_follow)
+        ts_ConvertDotStrokes = bool(mw.pm.profile['ts_default_ConvertDotStrokes'])#fix for previously being a string value, defaults string value to true bool, will be saved as true or false bool after
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
         ts_y_offset = mw.pm.profile['ts_y_offset']
         ts_small_width = mw.pm.profile['ts_small_width']
@@ -332,26 +315,22 @@ def ts_load():
         ts_color = "#272828"
         ts_line_width = 4
         ts_opacity = 0.8
-        ts_default_ConvertDotStrokes = "true"
         ts_auto_hide = True
         ts_follow = False
-        ts_menu_auto_hide.setChecked(True)
-        ts_menu_follow.setChecked(True)
+        ts_ConvertDotStrokes = True
         ts_orient_vertical = True
         ts_y_offset = 2
         ts_small_width = 500
         ts_small_height = 500
         ts_x_offset = 2
         ts_location = 1
-    ts_profile_loaded = True
 
+    ts_profile_loaded = True
+    ts_menu_auto_hide.setChecked(ts_auto_hide)
+    ts_menu_follow.setChecked(ts_follow)
+    ts_menu_dots.setChecked(ts_ConvertDotStrokes)
     if ts_state_on:
         ts_on()
-
-    if ts_default_ConvertDotStrokes == 'true':
-        ts_dotconvert_on()
-    else:
-        ts_dotconvert_off()
 
     assure_plugged_in()
 
@@ -374,7 +353,7 @@ def clear_blackboard():
     assure_plugged_in()
 
     if ts_state_on:
-        execute_js("clear_canvas();");
+        execute_js("if (typeof clear_canvas === 'function') { clear_canvas(); }")
         # is qFade the reason for having to wait?
         execute_js("if (typeof resize === 'function') { setTimeout(resize, 101); }");
 
@@ -511,7 +490,7 @@ var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ts_perfect_freehand_button = document.getElementById('ts_perfect_freehand_button');
 var ts_switch_fullscreen_button = document.getElementById('ts_switch_fullscreen_button');
 var arrays_of_points = [ ];
-var convertDotStrokes = """ + ts_default_ConvertDotStrokes + """;
+var convertDotStrokes = """ + str(ts_ConvertDotStrokes).lower() + """;
 var color = '#fff';
 var calligraphy = """ + ts_default_Calligraphy + """;
 var line_type_history = [ ];
@@ -821,7 +800,7 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
             }
             else {needPerfectDraw = true;}
         }
-        if(needPerfectDraw) {
+        if(needPerfectDraw) { 
                 var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i)  
                     ? new Path2D(
                             getFreeDrawSvgPath(
@@ -3039,7 +3018,6 @@ def custom(*args, **kwargs):
         blackboard() + 
         "<script>color = '" + ts_color + "'</script>" +
         "<script>line_width = '" + str(ts_line_width) + "'</script>"
-        "<script>convertDotStrokes = " + str(ts_default_ConvertDotStrokes) + "</script>"
     )
     return output
 
@@ -3076,47 +3054,36 @@ def ts_off():
     ts_menu_switch.setChecked(False)
     return True
 
-
-def ts_dotconvert_on():
+@slot()
+def ts_dots():
     """
-    Turn on dot convert
+    Switch dot conversion.
     """
-    checkProfile()
+    global ts_ConvertDotStrokes
+    ts_ConvertDotStrokes = not ts_ConvertDotStrokes
+    execute_js("convertDotStrokes = " + str(ts_ConvertDotStrokes).lower() + ";")
+    execute_js("if (typeof resize === 'function') { resize(); }")
 
-    global ts_default_ConvertDotStrokes
-    ts_default_ConvertDotStrokes = "true"
-    ts_menu_dots.setChecked(True)
-
-
-def ts_dotconvert_off():
-    """
-    Turn off dot convert
-    """
-    checkProfile()
-
-    global ts_default_ConvertDotStrokes
-    ts_default_ConvertDotStrokes = "false"
-    ts_menu_dots.setChecked(False)
 
 @slot()
 def ts_change_auto_hide_settings():
+    """
+    Switch auto hide toolbar setting.
+    """
     global ts_auto_hide
     ts_auto_hide = not ts_auto_hide
-    if ts_default_ConvertDotStrokes == 'true':
-        ts_dotconvert_off()
-    else:
-        ts_dotconvert_on()
-
-    execute_js("convertDotStrokes = " + ts_default_ConvertDotStrokes + "; update_pen_settings()")
     ts_switch()
     ts_switch()
 
 @slot()
 def ts_change_follow_settings():
+    """
+    Switch whiteboard follow screen.
+    """
     global ts_follow
     ts_follow = not ts_follow
-    execute_js("fullscreen_follow = " + str(ts_follow).lower() + "; resize()")
-    ts_refresh()
+    execute_js("fullscreen_follow = " + str(ts_follow).lower() + ";")
+    execute_js("if (typeof resize === 'function') { resize(); }")
     
 
 @slot()
@@ -3140,33 +3107,6 @@ def ts_switch():
         mw.deckBrowser.refresh()
     if mw.state == "overview":
         mw.overview.refresh()
-
-
-@slot()
-def ts_dots():
-    """
-    Switch dot conversion.
-    """
-
-    if ts_default_ConvertDotStrokes == 'true':
-        ts_dotconvert_off()
-    else:
-        ts_dotconvert_on()
-
-    execute_js("convertDotStrokes = " + ts_default_ConvertDotStrokes + "; update_pen_settings()")
-    ts_refresh()
-
-
-def ts_refresh():
-    """
-    Refresh display by reenabling night or normal mode.
-    """
-    if ts_state_on:
-        ts_on()
-    else:
-        ts_off()
-
-
 
 def ts_setup_menu():
     """
@@ -3193,7 +3133,6 @@ def ts_setup_menu():
     ts_menu_width = QAction("""Set pen &width""", mw)
     ts_menu_opacity = QAction("""Set pen &opacity""", mw)
     ts_toolbar_settings = QAction("""&Toolbar and canvas location settings""", mw)
-    ts_menu_about = QAction("""&About...""", mw)
 
     ts_toggle_seq = QKeySequence("Ctrl+r")
     ts_menu_switch.setShortcut(ts_toggle_seq)
@@ -3206,8 +3145,6 @@ def ts_setup_menu():
     mw.addon_view_menu.addAction(ts_menu_width)
     mw.addon_view_menu.addAction(ts_menu_opacity)
     mw.addon_view_menu.addAction(ts_toolbar_settings)
-    # mw.addon_view_menu.addSeparator()
-    # mw.addon_view_menu.addAction(ts_menu_about)
 
     ts_menu_switch.triggered.connect(ts_switch)
     ts_menu_dots.triggered.connect(ts_dots)
@@ -3217,7 +3154,6 @@ def ts_setup_menu():
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
     ts_toolbar_settings.triggered.connect(ts_change_toolbar_settings)
-    ts_menu_about.triggered.connect(ts_about)
 
 
 TS_ERROR_NO_PROFILE = "No profile loaded"
