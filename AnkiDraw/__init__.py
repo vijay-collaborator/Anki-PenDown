@@ -43,6 +43,7 @@ from aqt.qt import pyqtSlot as slot
 ts_state_on = False
 ts_profile_loaded = False
 ts_auto_hide = True
+ts_auto_hide_pointer = True
 ts_follow = False
 ts_ConvertDotStrokes = True
 
@@ -250,6 +251,9 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
 def get_css_for_auto_hide(auto_hide):
     return "none" if auto_hide else "flex"
 
+def get_css_for_auto_hide_pointer(auto_hide):
+    return "none" if auto_hide else "default"
+
 @slot()
 def ts_change_toolbar_settings():
     global ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
@@ -280,6 +284,7 @@ def ts_save():
     mw.pm.profile['ts_opacity'] = ts_opacity
     mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_ConvertDotStrokes
     mw.pm.profile['ts_auto_hide'] = ts_auto_hide
+    mw.pm.profile['ts_auto_hide_pointer'] = ts_auto_hide_pointer
     mw.pm.profile['ts_follow'] = ts_follow
     mw.pm.profile['ts_location'] = ts_location
     mw.pm.profile['ts_x_offset'] = ts_x_offset
@@ -294,13 +299,14 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
         ts_line_width = mw.pm.profile['ts_line_width']
         ts_opacity = mw.pm.profile['ts_opacity']
         ts_auto_hide = mw.pm.profile['ts_auto_hide']
+        ts_auto_hide_pointer = mw.pm.profile['ts_auto_hide_pointer']
         ts_follow = mw.pm.profile['ts_follow']
         ts_ConvertDotStrokes = bool(mw.pm.profile['ts_default_ConvertDotStrokes'])#fix for previously being a string value, defaults string value to true bool, will be saved as true or false bool after
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
@@ -315,6 +321,7 @@ def ts_load():
         ts_line_width = 4
         ts_opacity = 0.8
         ts_auto_hide = True
+        ts_auto_hide_pointer = True
         ts_follow = False
         ts_ConvertDotStrokes = True
         ts_orient_vertical = True
@@ -326,6 +333,7 @@ def ts_load():
 
     ts_profile_loaded = True
     ts_menu_auto_hide.setChecked(ts_auto_hide)
+    ts_menu_auto_hide_pointer.setChecked(ts_auto_hide_pointer)
     ts_menu_follow.setChecked(ts_follow)
     ts_menu_dots.setChecked(ts_ConvertDotStrokes)
     if ts_state_on:
@@ -467,7 +475,7 @@ body {
   height: 100px
 }
 .nopointer {
-  cursor: none !important;
+  cursor: """+get_css_for_auto_hide_pointer(ts_auto_hide_pointer)+""" !important;
 } .nopointer #pencil_button_bar,
 .touch_disable > button:not(:first-child) {
   display: """+get_css_for_auto_hide(ts_auto_hide)+""";
@@ -3084,6 +3092,16 @@ def ts_change_follow_settings():
     execute_js("fullscreen_follow = " + str(ts_follow).lower() + ";")
     execute_js("if (typeof resize === 'function') { resize(); }")
     
+@slot()
+def ts_change_auto_hide_pointer_settings():
+    """
+    Switch auto hide pointer setting.
+    """
+    global ts_auto_hide_pointer
+    ts_auto_hide_pointer = not ts_auto_hide_pointer
+    ts_switch()
+    ts_switch()
+      
 
 @slot()
 def ts_switch():
@@ -3111,7 +3129,7 @@ def ts_setup_menu():
     """
     Initialize menu. 
     """
-    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_follow
+    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_auto_hide_pointer, ts_menu_follow
 
     try:
         mw.addon_view_menu
@@ -3127,6 +3145,7 @@ def ts_setup_menu():
     ts_menu_switch = QAction("""&Enable Ankidraw""", mw, checkable=True)
     ts_menu_dots = QAction("""Convert &dot strokes on PF mode""", mw, checkable=True)
     ts_menu_auto_hide = QAction("""Auto &hide toolbar when drawing""", mw, checkable=True)
+    ts_menu_auto_hide_pointer = QAction("""Auto &hide pointer when drawing""", mw, checkable=True)
     ts_menu_follow = QAction("""&Follow when scrolling (faster on big cards)""", mw, checkable=True)
     ts_menu_color = QAction("""Set &pen color""", mw)
     ts_menu_width = QAction("""Set pen &width""", mw)
@@ -3139,6 +3158,7 @@ def ts_setup_menu():
     mw.addon_view_menu.addAction(ts_menu_switch)
     mw.addon_view_menu.addAction(ts_menu_dots)
     mw.addon_view_menu.addAction(ts_menu_auto_hide)
+    mw.addon_view_menu.addAction(ts_menu_auto_hide_pointer)
     mw.addon_view_menu.addAction(ts_menu_follow)
     mw.addon_view_menu.addAction(ts_menu_color)
     mw.addon_view_menu.addAction(ts_menu_width)
@@ -3148,6 +3168,7 @@ def ts_setup_menu():
     ts_menu_switch.triggered.connect(ts_switch)
     ts_menu_dots.triggered.connect(ts_dots)
     ts_menu_auto_hide.triggered.connect(ts_change_auto_hide_settings)
+    ts_menu_auto_hide_pointer.triggered.connect(ts_change_auto_hide_pointer_settings)
     ts_menu_follow.triggered.connect(ts_change_follow_settings)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
