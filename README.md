@@ -8,6 +8,7 @@ Website to test the drawing functionality: https://rytisgit.github.io/Anki-Stylu
   </a><br>
 
 # Changes
+* Added background color selection
 * Added follow screen mode(menu option) and small canvas mode(<kbd>alt + b</kbd>) to increase drawing speed on very big cards 
 * Added toolbar location configuration and other small fixes.
 * Fixed "resize not defined" error. Thanks huandney.
