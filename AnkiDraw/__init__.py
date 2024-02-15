@@ -217,9 +217,9 @@ class CustomDialog(QDialog):
     def select_color(self):
         color_dialog = QColorDialog()
         qcolor_old = QColor(self.color_label.text()[-9:-2])
-        color = color_dialog.getColor(qcolor_old, options=QColorDialog.ShowAlphaChannel)
+        color = color_dialog.getColor(qcolor_old, options=QColorDialog.ColorDialogOption.ShowAlphaChannel)
         if color.isValid():
-            self.color_label.setText(f"Background color: {(color.name()+color.name(QColor.HexArgb)[1:3]).upper()}")  # Update color label
+            self.color_label.setText(f"Background color: {(color.name()+color.name(QColor.NameFormat.HexArgb)[1:3]).upper()}")  # Update color label
 
 def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height, background_color):
     orient = "column" if orient_column else "row"
