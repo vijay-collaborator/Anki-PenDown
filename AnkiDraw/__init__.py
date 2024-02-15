@@ -55,6 +55,7 @@ ts_x_offset = 2
 ts_y_offset = 2
 ts_small_width = 500
 ts_small_height = 500
+ts_background_color = "#FFFFFF00"
 ts_orient_vertical = True
 ts_default_review_html = mw.reviewer.revHtml
 
@@ -139,6 +140,18 @@ class CustomDialog(QDialog):
         small_width_layout.addWidget(small_height_label)
         small_width_layout.addWidget(self.small_height_spin_box)
 
+        color_layout = QHBoxLayout()
+        self.color_button = QPushButton("Select Color")
+        self.color_button.clicked.connect(self.select_color)
+
+        self.color_label = QLabel("Background color: #FFFFFF00")  # Initial color label
+
+        color_layout.addWidget(self.color_label)
+        color_layout.addWidget(self.color_button)
+        
+
+        
+
         start_layout = QHBoxLayout()
         start_layout.addWidget(start_range_label)
         start_layout.addWidget(self.start_spin_box)
@@ -178,16 +191,19 @@ class CustomDialog(QDialog):
         dialog_layout.addWidget(range_label)
         dialog_layout.addLayout(range_layout)
         dialog_layout.addLayout(checkbox_layout2)
+        dialog_layout.addLayout(color_layout)
         dialog_layout.addLayout(button_layout)
+        
         self.setLayout(dialog_layout)
 
-    def set_values(self, combo_index, start_value, end_value, checkbox_state2, height, width):
+    def set_values(self, combo_index, start_value, end_value, checkbox_state2, height, width, background_color):
         self.combo_box.setCurrentIndex(combo_index)
         self.start_spin_box.setValue(start_value)
         self.small_height_spin_box.setValue(height)
         self.small_width_spin_box.setValue(width)
         self.end_spin_box.setValue(end_value)
         self.checkbox2.setChecked(checkbox_state2)
+        self.color_label.setText(f"Background color: {background_color}")
 
     def reset_to_default(self):
         self.combo_box.setCurrentIndex(1)
@@ -196,9 +212,16 @@ class CustomDialog(QDialog):
         self.small_height_spin_box.setValue(500)
         self.small_width_spin_box.setValue(500)
         self.checkbox2.setChecked(True)
+        self.color_label.setText("Background color: #FFFFFF00")  # Reset color label
 
+    def select_color(self):
+        color_dialog = QColorDialog()
+        qcolor_old = QColor(self.color_label.text()[-9:-2])
+        color = color_dialog.getColor(qcolor_old, options=QColorDialog.ShowAlphaChannel)
+        if color.isValid():
+            self.color_label.setText(f"Background color: {(color.name()+color.name(QColor.HexArgb)[1:3]).upper()}")  # Update color label
 
-def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height):
+def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, canvas_width, canvas_height, background_color):
     orient = "column" if orient_column else "row"
     switch = {
         0: f"""
@@ -209,6 +232,7 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --button-bar-orientation: {orient};
                         --small-canvas-height: {canvas_height};
                         --small-canvas-width: {canvas_width};
+                        --background-color: {background_color};
                     """,
         1: f"""
                         --button-bar-pt: {y_offset}px;
@@ -218,6 +242,7 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --button-bar-orientation: {orient};
                         --small-canvas-height: {canvas_height};
                         --small-canvas-width: {canvas_width};
+                        --background-color: {background_color};
                     """,
         2: f"""
                         --button-bar-pt: unset;
@@ -227,6 +252,7 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --button-bar-orientation: {orient};
                         --small-canvas-height: {canvas_height};
                         --small-canvas-width: {canvas_width};
+                        --background-color: {background_color};
                     """,
         3: f"""
                         --button-bar-pt: unset;
@@ -236,6 +262,7 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --button-bar-orientation: {orient};
                         --small-canvas-height: {canvas_height};
                         --small-canvas-width: {canvas_width};
+                        --background-color: {background_color};
                     """,
     }
     return switch.get(location, """
@@ -246,6 +273,7 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --button-bar-orientation: column;
                         --small-canvas-height: 500;
                         --small-canvas-width: 500;
+                        --background-color: #FFFFFF00;
                     """)
 
 def get_css_for_auto_hide(auto_hide):
@@ -256,10 +284,10 @@ def get_css_for_auto_hide_pointer(auto_hide):
 
 @slot()
 def ts_change_toolbar_settings():
-    global ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
+    global ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
     
     dialog = CustomDialog()
-    dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height) 
+    dialog.set_values(ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height, ts_background_color) 
     result = dialog.exec()
 
     if result == QDialog.DialogCode.Accepted:
@@ -267,6 +295,7 @@ def ts_change_toolbar_settings():
         ts_x_offset = dialog.start_spin_box.value()
         ts_y_offset = dialog.end_spin_box.value()
         ts_small_height = dialog.small_height_spin_box.value()
+        ts_background_color = dialog.color_label.text()[-9:]
         ts_small_width = dialog.small_width_spin_box.value()
         ts_orient_vertical = dialog.checkbox2.isChecked()
         ts_switch()
@@ -290,6 +319,7 @@ def ts_save():
     mw.pm.profile['ts_x_offset'] = ts_x_offset
     mw.pm.profile['ts_y_offset'] = ts_y_offset
     mw.pm.profile['ts_small_height'] = ts_small_height
+    mw.pm.profile['ts_background_color'] = ts_background_color
     mw.pm.profile['ts_small_width'] = ts_small_width
     mw.pm.profile['ts_orient_vertical'] = ts_orient_vertical
 
@@ -299,7 +329,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
@@ -313,6 +343,7 @@ def ts_load():
         ts_y_offset = mw.pm.profile['ts_y_offset']
         ts_small_width = mw.pm.profile['ts_small_width']
         ts_small_height = mw.pm.profile['ts_small_height']
+        ts_background_color = mw.pm.profile['ts_background_color']
         ts_x_offset = mw.pm.profile['ts_x_offset']
         ts_location = mw.pm.profile['ts_location']
     except KeyError:
@@ -328,6 +359,7 @@ def ts_load():
         ts_y_offset = 2
         ts_small_width = 500
         ts_small_height = 500
+        ts_background_color = "#FFFFFF00"
         ts_x_offset = 2
         ts_location = 1
 
@@ -418,7 +450,7 @@ def blackboard():
 </div>
 <style>
 :root {
-  """ + get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height) + """
+  """ + get_css_for_toolbar_location( ts_location, ts_x_offset, ts_y_offset, ts_orient_vertical, ts_small_width, ts_small_height, ts_background_color) + """
 }
 body {
   overflow-x: hidden; /* Hide horizontal scrollbar */
@@ -439,6 +471,7 @@ body {
   left: var(--canvas-bar-pl);
   }
 #main_canvas, #secondary_canvas {
+  background: var(--background-color);
   opacity: """ + str(ts_opacity) + """;
   border-style: none;
   border-width: 1px;
