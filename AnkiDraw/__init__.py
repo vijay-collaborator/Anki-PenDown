@@ -122,7 +122,7 @@ class CustomDialog(QDialog):
         self.small_width_spin_box = QSpinBox()
         self.small_width_spin_box.setRange(0, 9999)
 
-        small_height_label = QLabel("Non-Fullscreen Canvas Width:")
+        small_height_label = QLabel("Non-Fullscreen Canvas Height:")
         self.small_height_spin_box = QSpinBox()
         self.small_height_spin_box.setRange(0, 9999)
 
@@ -133,12 +133,12 @@ class CustomDialog(QDialog):
         range_layout = QVBoxLayout()
 
         small_height_layout = QHBoxLayout()
-        small_height_layout.addWidget(small_width_label)
-        small_height_layout.addWidget(self.small_width_spin_box)
+        small_height_layout.addWidget(small_height_label)
+        small_height_layout.addWidget(self.small_height_spin_box)
 
         small_width_layout = QHBoxLayout()
-        small_width_layout.addWidget(small_height_label)
-        small_width_layout.addWidget(self.small_height_spin_box)
+        small_width_layout.addWidget(small_width_label)
+        small_width_layout.addWidget(self.small_width_spin_box)
 
         color_layout = QHBoxLayout()
         self.color_button = QPushButton("Select Color")
@@ -161,8 +161,9 @@ class CustomDialog(QDialog):
         end_layout.addWidget(self.end_spin_box)
         range_layout.addLayout(start_layout)
         range_layout.addLayout(end_layout)
-        range_layout.addLayout(small_height_layout)
         range_layout.addLayout(small_width_layout)
+        range_layout.addLayout(small_height_layout)
+        
 
         checkbox_label2 = QLabel("Orient vertically:")
         self.checkbox2 = QCheckBox()
@@ -196,7 +197,7 @@ class CustomDialog(QDialog):
         
         self.setLayout(dialog_layout)
 
-    def set_values(self, combo_index, start_value, end_value, checkbox_state2, height, width, background_color):
+    def set_values(self, combo_index, start_value, end_value, checkbox_state2, width, height, background_color):
         self.combo_box.setCurrentIndex(combo_index)
         self.start_spin_box.setValue(start_value)
         self.small_height_spin_box.setValue(height)
