@@ -505,9 +505,6 @@ body {
 } .night_mode #pencil_button_bar > button > svg > path {
   /*stroke: #888;*/
 }
-#canvas_wrapper {
-  height: 100px
-}
 .touch_disable > button:not(:first-child){
     display: none;
 }
