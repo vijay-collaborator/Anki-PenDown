@@ -508,10 +508,11 @@ body {
 #canvas_wrapper {
   height: 100px
 }
-.nopointer {
-  cursor: """+get_css_for_auto_hide_pointer(ts_auto_hide_pointer)+""" !important;
-} .nopointer #pencil_button_bar,
-.touch_disable > button:not(:first-child) {
+.touch_disable > button:not(:first-child){
+    display: none;
+}
+.nopointer #pencil_button_bar
+{
   display: """+get_css_for_auto_hide(ts_auto_hide)+""";
 }
 </style>
