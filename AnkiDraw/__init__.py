@@ -420,7 +420,7 @@ def blackboard():
     <div id="pencil_button_bar">
         <!-- SVG icons from https://github.com/tabler/tabler-icons/ -->
         <button id="ts_visibility_button" class="active" title="Toggle visiblity (, comma)"
-              onclick="active=!active;switch_visibility();" >
+              onclick="switch_visibility();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4"></path><path d="M13.5 6.5l4 4"></path></svg>
         </button>
 
@@ -505,6 +505,7 @@ body {
 } .night_mode #pencil_button_bar > button > svg > path {
   /*stroke: #888;*/
 }
+
 .touch_disable > button:not(:first-child){
     display: none;
 }
@@ -707,7 +708,6 @@ window.requestAnimationFrame(draw_last_line_segment);
 var isPointerDown = false;
 var mouseX = 0;
 var mouseY = 0;
-var active = true;
 
 function update_pen_settings(){
     ctx.lineJoin = ctx.lineCap = 'round';
@@ -896,7 +896,7 @@ function pointerDownLine(e) {
 function pointerMoveLine(e) {
 	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
-    if (isPointerDown && active) {
+    if (isPointerDown) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
@@ -910,7 +910,7 @@ function pointerUpLine(e) {
     /* Needed for the last bit of the drawing. */
 	if (!e.isPrimary || calligraphy) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
-    if (isPointerDown && active) {
+    if (isPointerDown) {
         arrays_of_points[arrays_of_points.length-1].push([
 			e.offsetX,
 			e.offsetY,
