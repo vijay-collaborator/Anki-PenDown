@@ -44,6 +44,7 @@ ts_state_on = False
 ts_profile_loaded = False
 ts_auto_hide = True
 ts_auto_hide_pointer = True
+ts_default_small_canvas = False
 ts_follow = False
 ts_ConvertDotStrokes = True
 
@@ -315,6 +316,7 @@ def ts_save():
     mw.pm.profile['ts_default_ConvertDotStrokes'] = ts_ConvertDotStrokes
     mw.pm.profile['ts_auto_hide'] = ts_auto_hide
     mw.pm.profile['ts_auto_hide_pointer'] = ts_auto_hide_pointer
+    mw.pm.profile['ts_default_small_canvas'] = ts_default_small_canvas
     mw.pm.profile['ts_follow'] = ts_follow
     mw.pm.profile['ts_location'] = ts_location
     mw.pm.profile['ts_x_offset'] = ts_x_offset
@@ -330,7 +332,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_default_small_canvas, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
@@ -338,6 +340,7 @@ def ts_load():
         ts_opacity = mw.pm.profile['ts_opacity']
         ts_auto_hide = mw.pm.profile['ts_auto_hide']
         ts_auto_hide_pointer = mw.pm.profile['ts_auto_hide_pointer']
+        ts_default_small_canvas = mw.pm.profile['ts_default_small_canvas']
         ts_follow = mw.pm.profile['ts_follow']
         ts_ConvertDotStrokes = bool(mw.pm.profile['ts_default_ConvertDotStrokes'])#fix for previously being a string value, defaults string value to true bool, will be saved as true or false bool after
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
@@ -354,6 +357,7 @@ def ts_load():
         ts_opacity = 0.8
         ts_auto_hide = True
         ts_auto_hide_pointer = True
+        ts_default_small_canvas = False
         ts_follow = False
         ts_ConvertDotStrokes = True
         ts_orient_vertical = True
@@ -367,6 +371,7 @@ def ts_load():
     ts_profile_loaded = True
     ts_menu_auto_hide.setChecked(ts_auto_hide)
     ts_menu_auto_hide_pointer.setChecked(ts_auto_hide_pointer)
+    ts_menu_small_default.setChecked(ts_default_small_canvas)
     ts_menu_follow.setChecked(ts_follow)
     ts_menu_dots.setChecked(ts_ConvertDotStrokes)
     if ts_state_on:
@@ -536,7 +541,7 @@ var calligraphy = """ + ts_default_Calligraphy + """;
 var line_type_history = [ ];
 var perfect_cache = [ ];
 var line_width = 4;
-var small_canvas = false;
+var small_canvas = """ +  str(ts_default_small_canvas).lower() + """;
 var fullscreen_follow = """ + str(ts_follow).lower() + """;
 
 canvas.onselectstart = function() { return false; };
@@ -3123,6 +3128,16 @@ def ts_change_follow_settings():
     ts_follow = not ts_follow
     execute_js("fullscreen_follow = " + str(ts_follow).lower() + ";")
     execute_js("if (typeof resize === 'function') { resize(); }")
+
+@slot()
+def ts_change_small_default_settings():
+    """
+    Switch default small canvas mode setting.
+    """
+    global ts_default_small_canvas
+    ts_default_small_canvas = not ts_default_small_canvas
+    ts_switch()
+    ts_switch()
     
 @slot()
 def ts_change_auto_hide_pointer_settings():
@@ -3161,7 +3176,7 @@ def ts_setup_menu():
     """
     Initialize menu. 
     """
-    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_auto_hide_pointer, ts_menu_follow
+    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_auto_hide_pointer, ts_menu_small_default, ts_menu_follow
 
     try:
         mw.addon_view_menu
@@ -3179,6 +3194,7 @@ def ts_setup_menu():
     ts_menu_auto_hide = QAction("""Auto &hide toolbar when drawing""", mw, checkable=True)
     ts_menu_auto_hide_pointer = QAction("""Auto &hide pointer when drawing""", mw, checkable=True)
     ts_menu_follow = QAction("""&Follow when scrolling (faster on big cards)""", mw, checkable=True)
+    ts_menu_small_default = QAction("""&Small Canvas by default""", mw, checkable=True)
     ts_menu_color = QAction("""Set &pen color""", mw)
     ts_menu_width = QAction("""Set pen &width""", mw)
     ts_menu_opacity = QAction("""Set pen &opacity""", mw)
@@ -3192,6 +3208,7 @@ def ts_setup_menu():
     mw.addon_view_menu.addAction(ts_menu_auto_hide)
     mw.addon_view_menu.addAction(ts_menu_auto_hide_pointer)
     mw.addon_view_menu.addAction(ts_menu_follow)
+    mw.addon_view_menu.addAction(ts_menu_small_default)
     mw.addon_view_menu.addAction(ts_menu_color)
     mw.addon_view_menu.addAction(ts_menu_width)
     mw.addon_view_menu.addAction(ts_menu_opacity)
@@ -3202,6 +3219,7 @@ def ts_setup_menu():
     ts_menu_auto_hide.triggered.connect(ts_change_auto_hide_settings)
     ts_menu_auto_hide_pointer.triggered.connect(ts_change_auto_hide_pointer_settings)
     ts_menu_follow.triggered.connect(ts_change_follow_settings)
+    ts_menu_small_default.triggered.connect(ts_change_small_default_settings)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
