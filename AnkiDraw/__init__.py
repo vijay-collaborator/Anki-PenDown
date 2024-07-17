@@ -45,6 +45,7 @@ ts_profile_loaded = False
 ts_auto_hide = True
 ts_auto_hide_pointer = True
 ts_default_small_canvas = False
+ts_zen_mode = False
 ts_follow = False
 ts_ConvertDotStrokes = True
 
@@ -278,8 +279,11 @@ def get_css_for_toolbar_location(location, x_offset, y_offset, orient_column, ca
                         --background-color: #FFFFFF00;
                     """)
 
-def get_css_for_auto_hide(auto_hide):
-    return "none" if auto_hide else "flex"
+def get_css_for_auto_hide(auto_hide, zen):
+    return "none" if auto_hide or zen else "flex"
+
+def get_css_for_zen_mode(hide):
+    return "none" if hide else "flex"
 
 def get_css_for_auto_hide_pointer(auto_hide):
     return "none" if auto_hide else "default"
@@ -317,6 +321,7 @@ def ts_save():
     mw.pm.profile['ts_auto_hide'] = ts_auto_hide
     mw.pm.profile['ts_auto_hide_pointer'] = ts_auto_hide_pointer
     mw.pm.profile['ts_default_small_canvas'] = ts_default_small_canvas
+    mw.pm.profile['ts_zen_mode'] = ts_zen_mode
     mw.pm.profile['ts_follow'] = ts_follow
     mw.pm.profile['ts_location'] = ts_location
     mw.pm.profile['ts_x_offset'] = ts_x_offset
@@ -332,7 +337,7 @@ def ts_load():
     Load configuration from profile, set states of checkable menu objects
     and turn on night mode if it were enabled on previous session.
     """
-    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_default_small_canvas, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
+    global ts_state_on, ts_color, ts_profile_loaded, ts_line_width, ts_opacity, ts_ConvertDotStrokes, ts_auto_hide, ts_auto_hide_pointer, ts_default_small_canvas, ts_zen_mode, ts_follow, ts_orient_vertical, ts_y_offset, ts_x_offset, ts_location, ts_small_width, ts_small_height, ts_background_color
     try:
         ts_state_on = mw.pm.profile['ts_state_on']
         ts_color = mw.pm.profile['ts_color']
@@ -341,6 +346,7 @@ def ts_load():
         ts_auto_hide = mw.pm.profile['ts_auto_hide']
         ts_auto_hide_pointer = mw.pm.profile['ts_auto_hide_pointer']
         ts_default_small_canvas = mw.pm.profile['ts_default_small_canvas']
+        ts_zen_mode = mw.pm.profile['ts_zen_mode']
         ts_follow = mw.pm.profile['ts_follow']
         ts_ConvertDotStrokes = bool(mw.pm.profile['ts_default_ConvertDotStrokes'])#fix for previously being a string value, defaults string value to true bool, will be saved as true or false bool after
         ts_orient_vertical = mw.pm.profile['ts_orient_vertical']
@@ -358,6 +364,7 @@ def ts_load():
         ts_auto_hide = True
         ts_auto_hide_pointer = True
         ts_default_small_canvas = False
+        ts_zen_mode = False
         ts_follow = False
         ts_ConvertDotStrokes = True
         ts_orient_vertical = True
@@ -372,6 +379,7 @@ def ts_load():
     ts_menu_auto_hide.setChecked(ts_auto_hide)
     ts_menu_auto_hide_pointer.setChecked(ts_auto_hide_pointer)
     ts_menu_small_default.setChecked(ts_default_small_canvas)
+    ts_menu_zen_mode.setChecked(ts_zen_mode)
     ts_menu_follow.setChecked(ts_follow)
     ts_menu_dots.setChecked(ts_ConvertDotStrokes)
     if ts_state_on:
@@ -484,7 +492,7 @@ body {
 }
 #pencil_button_bar {
   position: fixed;
-  display: flex;
+  display: """+get_css_for_zen_mode(ts_zen_mode)+""";
   flex-direction: var(--button-bar-orientation);
   opacity: .5;
   top: var(--button-bar-pt);
@@ -510,13 +518,15 @@ body {
 } .night_mode #pencil_button_bar > button > svg > path {
   /*stroke: #888;*/
 }
-
+.nopointer {
+  cursor: """+get_css_for_auto_hide_pointer(ts_auto_hide_pointer)+""" !important;
+} 
 .touch_disable > button:not(:first-child){
     display: none;
 }
 .nopointer #pencil_button_bar
 {
-  display: """+get_css_for_auto_hide(ts_auto_hide)+""";
+  display: """+get_css_for_auto_hide(ts_auto_hide, ts_zen_mode)+""";
 }
 </style>
 
@@ -3138,6 +3148,16 @@ def ts_change_small_default_settings():
     ts_default_small_canvas = not ts_default_small_canvas
     ts_switch()
     ts_switch()
+
+@slot()
+def ts_change_zen_mode_settings():
+    """
+    Switch default zen mode setting.
+    """
+    global ts_zen_mode
+    ts_zen_mode = not ts_zen_mode
+    ts_switch()
+    ts_switch()
     
 @slot()
 def ts_change_auto_hide_pointer_settings():
@@ -3176,7 +3196,7 @@ def ts_setup_menu():
     """
     Initialize menu. 
     """
-    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_auto_hide_pointer, ts_menu_small_default, ts_menu_follow
+    global ts_menu_switch, ts_menu_dots, ts_menu_auto_hide, ts_menu_auto_hide_pointer, ts_menu_small_default, ts_menu_zen_mode, ts_menu_follow
 
     try:
         mw.addon_view_menu
@@ -3195,6 +3215,7 @@ def ts_setup_menu():
     ts_menu_auto_hide_pointer = QAction("""Auto &hide pointer when drawing""", mw, checkable=True)
     ts_menu_follow = QAction("""&Follow when scrolling (faster on big cards)""", mw, checkable=True)
     ts_menu_small_default = QAction("""&Small Canvas by default""", mw, checkable=True)
+    ts_menu_zen_mode = QAction("""Enable Zen Mode(hide toolbar until this is disabled)""", mw, checkable=True)
     ts_menu_color = QAction("""Set &pen color""", mw)
     ts_menu_width = QAction("""Set pen &width""", mw)
     ts_menu_opacity = QAction("""Set pen &opacity""", mw)
@@ -3209,6 +3230,7 @@ def ts_setup_menu():
     mw.addon_view_menu.addAction(ts_menu_auto_hide_pointer)
     mw.addon_view_menu.addAction(ts_menu_follow)
     mw.addon_view_menu.addAction(ts_menu_small_default)
+    mw.addon_view_menu.addAction(ts_menu_zen_mode)
     mw.addon_view_menu.addAction(ts_menu_color)
     mw.addon_view_menu.addAction(ts_menu_width)
     mw.addon_view_menu.addAction(ts_menu_opacity)
@@ -3220,6 +3242,7 @@ def ts_setup_menu():
     ts_menu_auto_hide_pointer.triggered.connect(ts_change_auto_hide_pointer_settings)
     ts_menu_follow.triggered.connect(ts_change_follow_settings)
     ts_menu_small_default.triggered.connect(ts_change_small_default_settings)
+    ts_menu_zen_mode.triggered.connect(ts_change_zen_mode_settings)
     ts_menu_color.triggered.connect(ts_change_color)
     ts_menu_width.triggered.connect(ts_change_width)
     ts_menu_opacity.triggered.connect(ts_change_opacity)
