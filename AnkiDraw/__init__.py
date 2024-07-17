@@ -510,7 +510,9 @@ body {
 } .night_mode #pencil_button_bar > button > svg > path {
   /*stroke: #888;*/
 }
-
+.nopointer {
+  cursor: """+get_css_for_auto_hide_pointer(ts_auto_hide_pointer)+""" !important;
+} 
 .touch_disable > button:not(:first-child){
     display: none;
 }
