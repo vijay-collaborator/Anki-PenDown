@@ -346,7 +346,8 @@ body {
 
 def blackboard_js():
     return u"""
-// Generated HTML set from python qt ui
+<script>
+// Set from python qt ui
 var visible = """ + ts_default_VISIBILITY + """;
 var perfectFreehand = """ + ts_default_PerfFreehand +""";
 var convertDotStrokes = """ + str(ts_ConvertDotStrokes).lower() + """;
@@ -922,6 +923,7 @@ function pointerUpCaligraphy(e) {
 //window.addEventListener("keydown",keydown,true);
 //
 //update();
+</script>
 """
 
 def custom(*args, **kwargs):
@@ -933,8 +935,8 @@ def custom(*args, **kwargs):
         default +
         blackboard_html() +
         blackboard_css() +
+        blackboard_js() +
         "<script>" +
-        blackboard_js() + 
         caligrapher_js +
         perfect_freehand_js+
         "</script>"
