@@ -195,9 +195,9 @@ def blackboard_html():
 
         <button id="ts_stroke_delete_button" title="Stroke Delete (Alt + d)"
             onclick="switch_stroke_delete_mode()" >
-        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 20l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4z"></path><path d="M13.5 6.5l4 4"></path><path d="M16 18h4m-2 -2v4"></path></svg>
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 3l18 18" /><path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l5 -4.993m2.009 -2.01l3 -3a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41c-1.417 1.431 -2.406 2.432 -2.97 3m-2.02 2.043l-4.211 4.256" /><path d="M18 13.3l-6.3 -6.3" /></svg>
         </button>
-
+        
         <button id="ts_undo_button" title="Undo the last stroke (Alt + z)"
               onclick="ts_undo();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
@@ -379,7 +379,10 @@ var ts_switch_fullscreen_button = document.getElementById('ts_switch_fullscreen_
 
 // Arrays to save point values from strokes
 var arrays_of_points = [ ];
-var arrays_of_delete_points = [ ];
+var arrays_of_calligraphy_points = [ ];
+var arrays_of_points_deleted = [ ];//sparse array of indexes to mark whether an specific stroke is deleted
+var arrays_of_calligraphy_points_deleted = [ ];//sparse array of indexes to mark whether an specific stroke is deleted
+var stroke_delete_list = [ ];//array of array of objects{array_of_x_deleted, index}
 var line_type_history = [ ];
 var perfect_cache = [ ];
 
@@ -396,6 +399,7 @@ function reset_drawing_modes()
     calligraphy = false;
     perfectFreehand = false;
     strokeDelete = false
+    ts_redraw()
 }
 
 function switch_perfect_freehand()
@@ -411,7 +415,6 @@ function switch_perfect_freehand()
     else{
         ts_perfect_freehand_button.className = '';
     }
-    ts_redraw()
 }
 
 function switch_calligraphy_mode()
@@ -586,7 +589,8 @@ function ts_undo(){
 	stop_drawing();
     switch (line_type_history.pop()) {
         case 'C'://Calligraphy
-            strokes.pop();    
+            strokes.pop();
+            arrays_of_calligraphy_points.pop();
             break;
         case 'L'://Simple Lines
             var index = arrays_of_points.length-1
@@ -594,10 +598,14 @@ function ts_undo(){
             perfect_cache[index] = null;
             break;
         case 'D'://Delete Stroke Lines
-            arrays_of_delete_points.pop()
+            stroke_delete_list.pop().forEach(
+                deleted => {
+                    if(deleted[0]=="C")arrays_of_calligraphy_points_deleted[deleted[1]]=false;
+                    if(deleted[0]=="L")arrays_of_points_deleted[deleted[1]]=false;
+                }
+            )
             break;
         default://how did you get here??
-            //console.log("Unrecognized line type for undo") 
             break;
     }
     
@@ -629,6 +637,10 @@ function clear_canvas()
     arrays_of_points = [];
     strokes = [];
     arrays_of_delete_points = [];
+    arrays_of_calligraphy_points = [];
+    arrays_of_points_deleted = [];
+    arrays_of_calligraphy_points_deleted = [];
+    stroke_delete_list = [];
     perfect_cache = [];
     line_type_history = [];
 	ts_clear();
@@ -690,6 +702,11 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
         var needPerfectDraw = false;
 		nextLine = i;
+        if(arrays_of_points_deleted[i]){
+            nextLine++;
+            nextPoint = 0;
+            continue;
+        }
 		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
 		//take the 2 previous points in addition to current one at the start of the loop.
 		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
@@ -717,13 +734,15 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
         if(all_drawing_finished(i)){
                 nextLine++;
                 nextPoint = 0;
-            }
+        }
         startPoint = 0;
     }
     //Draw Calligraphy Strokes one by one starting from the given point
     for(var i = startStroke; i < strokes.length; i++){
         nextStroke = i+1;
-        strokes[i].draw(WEIGHT, ctx);
+        if(!arrays_of_calligraphy_points_deleted[i]){
+            strokes[i].draw(WEIGHT, ctx);
+        }
     }
 
 	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necessary
@@ -796,20 +815,13 @@ function updateVariable() {
     status.textContent = `Variable Value: ${variable}`; // Update display
 }
 
-document.addEventListener('keydown', function(e) {
-    // alt + e
-    if ((e.keyCode == 69 || e.key == "e") && e.altKey) {
-		e.preventDefault();
-        if(tempColor==""){
-            tempColor = color;
-            color = "Red";
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            secondary_ctx.strokeStyle = ctx.strokeStyle;
-            secondary_ctx.fillStyle = ctx.fillStyle;
-        }
-    }
-})
+// document.addEventListener('keydown', function(e) {
+//     // alt + e
+//     if ((e.keyCode == 69 || e.key == "e") && e.altKey) {
+// 		e.preventDefault();
+//         ctx.globalCompositeOperation = "destination-out";
+//     }
+// })
 
 document.addEventListener('keyup', function(e) {
     // alt + z
@@ -825,16 +837,9 @@ document.addEventListener('keyup', function(e) {
     if (e.key === ",") {
         switch_visibility();
     }
-    if (e.keyCode == 69 || e.key == "e") {
-        if(tempColor!=""){
-            color = tempColor
-            tempColor = ""
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            secondary_ctx.strokeStyle = ctx.strokeStyle;
-            secondary_ctx.fillStyle = ctx.fillStyle;
-        }
-    }
+    // if (e.keyCode == 69 || e.key == "e") {
+    //     ctx.globalCompositeOperation = "source-over";
+    // }
     if (e.keyCode == 68 || e.key == "d") {
         e.preventDefault();
         switch_stroke_delete_mode();
@@ -887,6 +892,8 @@ function pointerDownStrokeDelete(e) {
     wrapper.classList.add('nopointer');
     if (!e.isPrimary || !strokeDelete) { return; }
     event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
+    secondary_ctx.strokeStyle = "Red";
+    secondary_ctx.fillStyle = "Red";
     start_drawing();
 };
 
@@ -907,17 +914,29 @@ function pointerUpStrokeDelete(e) {
     wrapper.classList.remove('nopointer');
     stop_drawing();
     if (!e.isPrimary || !strokeDelete || !currentPath.length) { return; }
+    secondary_ctx.strokeStyle = color;
+    secondary_ctx.fillStyle = color;
     points = currentPath;
     lineDeleted = false;
+    marked_lines = []
     for(var i = 0; i< arrays_of_points.length; i++){
         if(doLinesIntersect(arrays_of_points[i], points)){
-            arrays_of_points[i]=[[1,1,1],[1,1,1],[1,1,1]]
+            arrays_of_points_deleted[i]=true;//mark as deleted
+            marked_lines.push(["L", i])//add reference for easy undo
             lineDeleted = true;
-            //mark deleted instead of resetting
-            //mark deleted for calligraphy instead of resetting
         }
     }
-    if(lineDeleted)line_type_history.push('D');//Add new Deleted line marker to shared history
+    for(var i = 0; i< arrays_of_calligraphy_points.length; i++){
+        if(doLinesIntersect(arrays_of_calligraphy_points[i], points)){
+            lineDeleted = true;
+            arrays_of_calligraphy_points_deleted[i]=true;//mark as deleted
+            marked_lines.push(["C", i])//add reference for easy undo
+        }
+    }
+    if(lineDeleted){
+        line_type_history.push('D');//Add new Deleted line marker to shared history
+        stroke_delete_list.push(marked_lines);//add list of lines which were deleted to the list
+    }
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
     secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
     ts_redraw()
@@ -1051,7 +1070,8 @@ function pointerUpCaligraphy(e) {
     points = currentPath;
     
     var curves = fitStroke(points);
-    
+
+    arrays_of_calligraphy_points.push(points);
     strokes.push(new Stroke(curves));
     
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
