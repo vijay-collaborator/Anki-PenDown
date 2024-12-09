@@ -189,8 +189,13 @@ def blackboard_html():
         </button>
 
         <button id="ts_kanji_button" title="Toggle calligrapher (Alt + c)"
-              onclick="switch_drawing_mode();" >
+              onclick="switch_calligraphy_mode();" >
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"></path><path d="M21 3a16 16 0 0 0 -12.8 10.2"></path><path d="M21 3a16 16 0 0 1 -10.2 12.8"></path><path d="M10.6 9a9 9 0 0 1 4.4 4.4"></path></svg>
+        </button>
+
+        <button id="ts_stroke_delete_button" title="Stroke Delete (Alt + d)"
+            onclick="switch_stroke_delete_mode()" >
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 20l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4z"></path><path d="M13.5 6.5l4 4"></path><path d="M16 18h4m-2 -2v4"></path></svg>
         </button>
 
         <button id="ts_undo_button" title="Undo the last stroke (Alt + z)"
@@ -354,6 +359,7 @@ var convertDotStrokes = """ + str(ts_ConvertDotStrokes).lower() + """;
 var small_canvas = """ +  str(ts_default_small_canvas).lower() + """;
 var fullscreen_follow = """ + str(ts_follow).lower() + """;
 var calligraphy = """ + ts_default_Calligraphy + """;
+var strokeDelete = false;
 var color = """ + "\'" + str(ts_color) + "\'" + """;
 var line_width = """ + str(ts_line_width) + """;
 
@@ -368,10 +374,12 @@ var secondary_ctx = secondary_canvas.getContext('2d');
 var ts_visibility_button = document.getElementById('ts_visibility_button');
 var ts_kanji_button = document.getElementById('ts_kanji_button');
 var ts_perfect_freehand_button = document.getElementById('ts_perfect_freehand_button');
+var ts_stroke_delete_button = document.getElementById('ts_stroke_delete_button');
 var ts_switch_fullscreen_button = document.getElementById('ts_switch_fullscreen_button');
 
 // Arrays to save point values from strokes
 var arrays_of_points = [ ];
+var arrays_of_delete_points = [ ];
 var line_type_history = [ ];
 var perfect_cache = [ ];
 
@@ -380,20 +388,60 @@ canvas.onselectstart = function() { return false; };
 secondary_canvas.onselectstart = function() { return false; };
 wrapper.onselectstart = function() { return false; };
 
+function reset_drawing_modes()
+{
+    ts_kanji_button.className = '';
+    ts_perfect_freehand_button.className = '';
+    ts_stroke_delete_button.className = '';
+    calligraphy = false;
+    perfectFreehand = false;
+    strokeDelete = false
+}
+
 function switch_perfect_freehand()
 {
     stop_drawing();
-    perfectFreehand = !perfectFreehand;
+    temp = !perfectFreehand;
+    reset_drawing_modes()
+    perfectFreehand = temp;
     if(perfectFreehand)
     {
         ts_perfect_freehand_button.className = 'active';
-        ts_kanji_button.className = '';
-        calligraphy = false;
     }
     else{
         ts_perfect_freehand_button.className = '';
     }
     ts_redraw()
+}
+
+function switch_calligraphy_mode()
+{
+    stop_drawing();
+    temp = !calligraphy;
+    reset_drawing_modes()
+    calligraphy = temp;
+    if(calligraphy)
+    {
+        ts_kanji_button.className = 'active';
+    }
+    else{
+        ts_kanji_button.className = '';
+    }
+}
+
+function switch_stroke_delete_mode()
+{
+    stop_drawing();
+    temp = !strokeDelete;
+    reset_drawing_modes()
+    strokeDelete = temp;
+    if(strokeDelete)
+    {
+        ts_stroke_delete_button.className = 'active';
+    }
+    else{
+        ts_stroke_delete_button.className = '';
+    }
 }
 
 function switch_small_canvas()
@@ -438,21 +486,9 @@ window.addEventListener("pointerup", pointerUpLine);
 canvas.addEventListener("pointerdown", pointerDownCaligraphy);
 canvas.addEventListener("pointermove", pointerMoveCaligraphy);
 window.addEventListener("pointerup", pointerUpCaligraphy);
-
-function switch_drawing_mode()
-{
-    stop_drawing();
-    calligraphy = !calligraphy;
-    if(calligraphy)
-    {
-        ts_kanji_button.className = 'active';
-        ts_perfect_freehand_button.className = '';
-        perfectFreehand = false;
-    }
-    else{
-        ts_kanji_button.className = '';
-    }
-}
+canvas.addEventListener("pointerdown", pointerDownStrokeDelete);
+canvas.addEventListener("pointermove", pointerMoveStrokeDelete);
+window.addEventListener("pointerup", pointerUpStrokeDelete);
 
 function resize() {
     
@@ -557,6 +593,9 @@ function ts_undo(){
             arrays_of_points.pop()
             perfect_cache[index] = null;
             break;
+        case 'D'://Delete Stroke Lines
+            arrays_of_delete_points.pop()
+            break;
         default://how did you get here??
             //console.log("Unrecognized line type for undo") 
             break;
@@ -589,6 +628,7 @@ function clear_canvas()
 	stop_drawing();
     arrays_of_points = [];
     strokes = [];
+    arrays_of_delete_points = [];
     perfect_cache = [];
     line_type_history = [];
 	ts_clear();
@@ -703,7 +743,7 @@ var drawingWithPressurePenOnly = false; // hack for drawing with 2 main pointers
 
 function pointerDownLine(e) {
     wrapper.classList.add('nopointer');
-	if (!e.isPrimary || calligraphy) { return; }
+	if (!e.isPrimary || calligraphy || strokeDelete) { return; }
 	if (e.pointerType[0] == 'p') { drawingWithPressurePenOnly = true }
 	else if ( drawingWithPressurePenOnly) { return; }
     if(!isPointerDown){
@@ -719,7 +759,7 @@ function pointerDownLine(e) {
 }
 
 function pointerMoveLine(e) {
-	if (!e.isPrimary || calligraphy) { return; }
+	if (!e.isPrimary || calligraphy || strokeDelete) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
     if (isPointerDown) {
         arrays_of_points[arrays_of_points.length-1].push([
@@ -733,7 +773,7 @@ function pointerMoveLine(e) {
 function pointerUpLine(e) {
     wrapper.classList.remove('nopointer');
     /* Needed for the last bit of the drawing. */
-	if (!e.isPrimary || calligraphy) { return; }
+	if (!e.isPrimary || calligraphy || strokeDelete) { return; }
 	if (e.pointerType[0] != 'p' && drawingWithPressurePenOnly) { return; }
     if (isPointerDown) {
         arrays_of_points[arrays_of_points.length-1].push([
@@ -746,9 +786,34 @@ function pointerUpLine(e) {
     if(perfectFreehand) ts_redraw();
 }
 
+var tempColor = ""; // The variable to change
+var eraseMode = false // Are we currently drawing the erase line?
+var intervalId = null; // To track the interval
+
+// Function to update the variable and display
+function updateVariable() {
+    variable += 1; // Increment the variable
+    status.textContent = `Variable Value: ${variable}`; // Update display
+}
+
+document.addEventListener('keydown', function(e) {
+    // alt + e
+    if ((e.keyCode == 69 || e.key == "e") && e.altKey) {
+		e.preventDefault();
+        if(tempColor==""){
+            tempColor = color;
+            color = "Red";
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            secondary_ctx.strokeStyle = ctx.strokeStyle;
+            secondary_ctx.fillStyle = ctx.fillStyle;
+        }
+    }
+})
+
 document.addEventListener('keyup', function(e) {
-    // alt + Z or z
-    if ((e.keyCode == 90 || e.keyCode == 122) && e.altKey) {
+    // alt + z
+    if ((e.keyCode == 90 || e.key == "z") && e.altKey) {
 		e.preventDefault();
         ts_undo();
     }
@@ -760,21 +825,104 @@ document.addEventListener('keyup', function(e) {
     if (e.key === ",") {
         switch_visibility();
     }
-    // alt + C or c
-    if ((e.key === "c" || e.key === "C") && e.altKey) {
-        e.preventDefault();
-        switch_drawing_mode();
+    if (e.keyCode == 69 || e.key == "e") {
+        if(tempColor!=""){
+            color = tempColor
+            tempColor = ""
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            secondary_ctx.strokeStyle = ctx.strokeStyle;
+            secondary_ctx.fillStyle = ctx.fillStyle;
+        }
     }
-        // alt + X or x
-    if ((e.key === "x" || e.key === "X") && e.altKey) {
+    if (e.keyCode == 68 || e.key == "d") {
+        e.preventDefault();
+        switch_stroke_delete_mode();
+    }
+    // alt + c
+    if ((e.keyCode === 67 || e.key === "c") && e.altKey) {
+        e.preventDefault();
+        switch_calligraphy_mode();
+    }
+        // alt + x
+    if ((e.keyCode === 88 || e.key === "x") && e.altKey) {
         e.preventDefault();
         switch_perfect_freehand();
     }
-    if ((e.key === "b" || e.key === "B") && e.altKey) {
+    // alt + b
+    if ((e.keyCode === 66 || e.key === "b") && e.altKey) {
         e.preventDefault();
         switch_small_canvas();
     }
 })
+
+// ----------------------------------------- Stroke Delete -----------------------------------------
+
+
+function doLinesIntersect(line1, line2) {
+    function lineLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+        // calculate the distance to intersection point
+        var uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+        var uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+
+        // if uA and uB are between 0-1, lines are colliding
+        if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1) {
+            return true;
+        }
+    return false;
+    }
+    // Iterate over all points in the two arrays
+    for (let i = 0; i < line1.length - 1; i++) {
+        for (let j = 0; j < line2.length - 1; j++) {
+            if (lineLine(line1[i][0], line1[i][1], line1[i + 1][0], line1[i + 1][1], line2[j][0], line2[j][1], line2[j + 1][0], line2[j + 1][1])) {
+                return true; // Lines intersect
+            }
+        }
+    }
+
+    return false; // No intersections
+}
+
+function pointerDownStrokeDelete(e) {
+    wrapper.classList.add('nopointer');
+    if (!e.isPrimary || !strokeDelete) { return; }
+    event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
+    start_drawing();
+};
+
+function pointerMoveStrokeDelete(e) {
+    if (!e.isPrimary || !strokeDelete) { return; }
+    if(isPointerDown) {
+        var mousePos = [e.offsetX, e.offsetY];
+        if(currentPath.length != 0) {
+            if(getDist(mousePos,currentPath[currentPath.length-1])>=MIN_MOUSE_DIST)
+                currentPath.push(mousePos);
+            drawCurrentPath();
+        } else
+            currentPath.push(mousePos);
+    } 
+};
+
+function pointerUpStrokeDelete(e) {
+    wrapper.classList.remove('nopointer');
+    stop_drawing();
+    if (!e.isPrimary || !strokeDelete || !currentPath.length) { return; }
+    points = currentPath;
+    lineDeleted = false;
+    for(var i = 0; i< arrays_of_points.length; i++){
+        if(doLinesIntersect(arrays_of_points[i], points)){
+            arrays_of_points[i]=[[1,1,1],[1,1,1],[1,1,1]]
+            lineDeleted = true;
+            //mark deleted instead of resetting
+            //mark deleted for calligraphy instead of resetting
+        }
+    }
+    if(lineDeleted)line_type_history.push('D');//Add new Deleted line marker to shared history
+    currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
+    secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
+    ts_redraw()
+};
+
 // ----------------------------------------- Perfect Freehand -----------------------------------------
 
 // The rest of the code gets loaded in from PerfectFreehand.js
