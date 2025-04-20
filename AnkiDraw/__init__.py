@@ -587,7 +587,7 @@ function update_pen_settings(){
 
 function ts_undo(){
 	stop_drawing();
-    switch (line_type_history.pop()) {
+    switch (line_type_history.pop()[0]) {
         case 'C'://Calligraphy
             strokes.pop();
             arrays_of_calligraphy_points.pop();
@@ -695,64 +695,70 @@ async function draw_upto_latest_point_async(startLine, startPoint, startStroke){
 	fullRedraw = true;
 	startLine = 0;
 	startPoint = 0;
-    startStroke = 0;
 	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	}
-
-	for(var i = startLine; i < arrays_of_points.length; i++){ //Draw Lines
-        var needPerfectDraw = false;
-		nextLine = i;
-        if(arrays_of_points_deleted[i]){
-            nextLine++;
-            nextPoint = 0;
-            continue;
+    for(var i = startLine; i < line_type_history.length; i++){ //Draw
+        line_index = line_type_history[i][1]
+        switch (line_type_history[i][0]) {
+            case 'C'://Calligraphy
+                if(!arrays_of_calligraphy_points_deleted[line_index]){
+                    strokes[line_index].draw(WEIGHT, ctx);
+                }
+                break;
+            case 'L'://Simple Lines
+                if(arrays_of_points_deleted[line_index]){
+                    nextPoint = 0;
+                    continue;
+                }
+                ///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
+                //take the 2 previous points in addition to current one at the start of the loop.
+                p2 = arrays_of_points[line_index][startPoint > 1 ? startPoint-2 : 0];
+                p3 = arrays_of_points[line_index][startPoint > 0 ? startPoint-1 : 0];
+                for(var j = startPoint; j < arrays_of_points[line_index].length; j++){
+                    nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
+                    p1 = p2;
+                    p2 = p3;
+                    p3 = arrays_of_points[line_index][j];
+                    draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[3]);
+                }
+                if(all_drawing_finished(i)){
+                    nextPoint = 0;
+                }
+                break;
+            case 'P'://Perfect Lines
+                    if(arrays_of_points_deleted[line_index]){
+                        nextPoint = 0;
+                        continue;
+                    }
+                    var path = !perfect_cache[line_index] || is_last_path_and_currently_drawn(line_index)  
+                        ? new Path2D(
+                                getFreeDrawSvgPath(
+                                    arrays_of_points[line_index],
+                                    !is_last_path_and_currently_drawn(line_index)))
+                        : perfect_cache[line_index]
+                    perfect_cache[line_index] = path
+                    ctx.fill(path);
+                break;
+            case 'D'://Delete Stroke Lines
+                break;
+            default://how did you get here??
+                break;
         }
-		///0,0,0; 0,0,1; 0,1,2 or x+1,x+2,x+3
-		//take the 2 previous points in addition to current one at the start of the loop.
-		p2 = arrays_of_points[i][startPoint > 1 ? startPoint-2 : 0];
-		p3 = arrays_of_points[i][startPoint > 0 ? startPoint-1 : 0];
-        for(var j = startPoint; j < arrays_of_points[i].length; j++){
-			nextPoint = j + 1;//track which point was last drawn so we can pick up where we left off on the next refresh.
-			p1 = p2;
-			p2 = p3;
-			p3 = arrays_of_points[i][j];
-            if(!perfectFreehand){
-                draw_path_at_some_point_async(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1],p3[3]);
-            }
-            else {needPerfectDraw = true;}
-        }
-        if(needPerfectDraw) { 
-                var path = !perfect_cache[i] || is_last_path_and_currently_drawn(i)  
-                    ? new Path2D(
-                            getFreeDrawSvgPath(
-                                arrays_of_points[i],
-                                !is_last_path_and_currently_drawn(i)))
-                    : perfect_cache[i]
-                perfect_cache[i] = path
-                ctx.fill(path);
-        }     
-        if(all_drawing_finished(i)){
-                nextLine++;
-                nextPoint = 0;
-        }
-        startPoint = 0;
     }
-    //Draw Calligraphy Strokes one by one starting from the given point
-    for(var i = startStroke; i < strokes.length; i++){
-        nextStroke = i+1;
-        if(!arrays_of_calligraphy_points_deleted[i]){
-            strokes[i].draw(WEIGHT, ctx);
-        }
+    if(all_drawing_finished(i)){
+        nextLine = line_type_history.length;
+        nextPoint = 0;
     }
-
+    else{
+        nextLine = line_type_history.length-1;
+    }
+    
 	if (fullRedraw) {//finished full redraw, now can unset redraw all flag so no more full redraws until necessary
     pleaseRedrawEverything = false;
 	fullRedraw = false;
     nextPoint = strokes.length == 0 ? 0 : nextPoint;//reset next point if out of lines
-    nextStroke = strokes.length == 0 ? 0 : nextStroke;//reset for undo as well
         if(fullClear){// start again from 0.
             nextLine = 0;
-            nextStroke = 0;
             fullClear = false;
         }
 	}
@@ -772,7 +778,7 @@ function pointerDownLine(e) {
 			e.offsetY,
             e.pointerType[0] == 'p' ? e.pressure : 2,
 			e.pointerType[0] == 'p' ? (1.0 + e.pressure * line_width * 2) : line_width]]);
-        line_type_history.push('L');//Add new Simple line marker to shared history
+        line_type_history.push(['L',arrays_of_points.length-1]);//Add new Simple line marker to shared history
         start_drawing();
     }
 }
@@ -934,8 +940,8 @@ function pointerUpStrokeDelete(e) {
         }
     }
     if(lineDeleted){
-        line_type_history.push('D');//Add new Deleted line marker to shared history
         stroke_delete_list.push(marked_lines);//add list of lines which were deleted to the list
+        line_type_history.push(['D',stroke_delete_list.length-1]);//Add new Deleted line marker to shared history
     }
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
     secondary_ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear the guide line in second canvas
@@ -1046,7 +1052,6 @@ function pointerDownCaligraphy(e) {
     wrapper.classList.add('nopointer');
     if (!e.isPrimary || !calligraphy) { return; }
     event.preventDefault();//don't paint anything when clicking on buttons, especially for undo to work
-    line_type_history.push('C');//Add new Caligragraphy line marker to shared history
     start_drawing();
 };
 
@@ -1072,6 +1077,7 @@ function pointerUpCaligraphy(e) {
     var curves = fitStroke(points);
 
     arrays_of_calligraphy_points.push(points);
+    line_type_history.push(['C',arrays_of_calligraphy_points.length-1]);//Add new Caligragraphy line marker to shared history
     strokes.push(new Stroke(curves));
     
     currentPath = [];// clear the array on pointer up so it doesnt enter new lines when clicking on buttons
